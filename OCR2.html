@@ -1,0 +1,2867 @@
+<!DOCTYPE html>
+<html lang="id" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analisis Lengkap Al-Quran - Huruf, Tajwid & Nahwu</title>
+    <script src='https://unpkg.com/tesseract.js@4.1.1/dist/tesseract.min.js'></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a5276 0%, #2e86ab 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        h1 { text-align: center; color: #1a5276; margin-bottom: 10px; font-size: 2em; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 20px; font-size: 1.1em; }
+        
+        .tabs {
+            display: flex; gap: 5px; margin-bottom: 20px;
+            background: #f0f0f0; border-radius: 10px; padding: 5px; flex-wrap: wrap;
+        }
+        .tab {
+            flex: 1; min-width: 150px; padding: 12px 20px;
+            border: none; background: transparent; border-radius: 8px;
+            cursor: pointer; font-size: 1em; transition: all 0.3s; color: #666;
+        }
+        .tab.active { background: #1a5276; color: white; font-weight: 600; }
+        .tab:hover:not(.active) { background: #e0e0e0; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .api-section, .ocr-section, .input-section {
+            border-radius: 10px; padding: 20px; margin-bottom: 20px;
+        }
+        .api-section { background: #f0f7ff; border: 2px dashed #2e86ab; }
+        .ocr-section { background: #fff5f5; border: 2px dashed #e74c3c; text-align: center; }
+        .input-section { background: #f0fff0; border: 2px dashed #27ae60; }
+        
+        .api-section h3, .ocr-section h3, .input-section h3 {
+            margin-bottom: 15px; text-align: center;
+        }
+        .api-section h3 { color: #1a5276; }
+        .ocr-section h3 { color: #c0392b; }
+        .input-section h3 { color: #27ae60; }
+        
+        .surah-selector {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { color: #1a5276; font-weight: 600; margin-bottom: 5px; font-size: 0.9em; }
+        .form-group select, .form-group input {
+            padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1em;
+        }
+        
+        #ayatInput {
+            width: 100%; min-height: 250px; padding: 15px;
+            border: 2px solid #27ae60; border-radius: 10px;
+            font-family: 'Traditional Arabic', 'Arial', sans-serif;
+            font-size: 1.4em; line-height: 2.2; direction: rtl; resize: vertical;
+        }
+        
+        .input-info {
+            display: flex; justify-content: space-between; margin-top: 10px;
+            flex-wrap: wrap; gap: 10px;
+        }
+        .info-box {
+            background: white; padding: 10px 15px; border-radius: 8px;
+            border-right: 4px solid #27ae60; font-size: 0.9em;
+        }
+        .info-box span { color: #27ae60; font-weight: bold; }
+        
+        .btn-group { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+        .btn {
+            padding: 15px 30px; border: none; border-radius: 50px;
+            font-size: 1.1em; cursor: pointer; transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .btn-primary { background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; }
+        .btn-secondary { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; }
+        .btn-info { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #f39c12, #e67e22); color: white; }
+        .btn-purple { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white; }
+        .btn-teal { background: linear-gradient(135deg, #00897b, #00695c); color: white; }
+        .btn-indigo { background: linear-gradient(135deg, #3949ab, #283593); color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .btn:disabled { background: #95a5a6; cursor: not-allowed; transform: none; }
+        
+        .loading { text-align: center; padding: 30px; font-size: 1.2em; color: #666; display: none; }
+        .loading.active { display: block; }
+        .spinner {
+            display: inline-block; width: 40px; height: 40px;
+            border: 4px solid #f3f3f3; border-top: 4px solid #27ae60;
+            border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .progress-container {
+            width: 100%; max-width: 400px; margin: 15px auto;
+            background: #e0e0e0; border-radius: 20px; overflow: hidden; display: none;
+        }
+        .progress-container.active { display: block; }
+        .progress-bar {
+            height: 25px; background: linear-gradient(90deg, #27ae60, #2ecc71);
+            width: 0%; transition: width 0.3s;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 0.85em; font-weight: bold;
+        }
+        
+        .alert { padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; display: none; }
+        .alert.active { display: block; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        
+        .section {
+            margin-bottom: 25px; padding: 20px;
+            background: #f8f9fa; border-radius: 10px;
+            border-right: 5px solid #2e86ab; display: none;
+        }
+        .section.active { display: block; }
+        .section h2 {
+            color: #1a5276; margin-bottom: 15px; font-size: 1.3em;
+            display: flex; align-items: center; gap: 10px;
+        }
+        
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white; padding: 15px; border-radius: 10px;
+            text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-value { font-size: 1.8em; font-weight: bold; color: #27ae60; }
+        .stat-label { color: #666; margin-top: 5px; font-size: 0.85em; }
+        
+        table {
+            width: 100%; border-collapse: collapse; margin-top: 10px;
+            background: white; border-radius: 10px; overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-size: 0.9em;
+        }
+        th, td { padding: 10px 12px; text-align: center; border-bottom: 1px solid #ddd; }
+        th {
+            background: #1a5276; color: white; font-weight: 600;
+            position: sticky; top: 0; font-size: 0.85em;
+        }
+        tr:hover { background: #f1f2f6; }
+        .arabic { font-family: 'Traditional Arabic', 'Arial', sans-serif; font-size: 1.4em; }
+        
+        .bar-chart { display: flex; align-items: center; gap: 8px; }
+        .bar {
+            height: 20px; background: linear-gradient(90deg, #27ae60, #2ecc71);
+            border-radius: 10px; transition: width 0.8s ease; min-width: 3px;
+        }
+        .bar-value { font-size: 0.8em; color: #666; min-width: 35px; }
+        
+        .ayah-list { max-height: 500px; overflow-y: auto; border-radius: 10px; }
+        .ayah-item {
+            background: white; padding: 12px; margin: 6px 0;
+            border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            line-height: 2; font-family: 'Traditional Arabic', 'Arial', sans-serif;
+            font-size: 1.15em; display: flex; align-items: flex-start; gap: 12px;
+        }
+        .ayah-number {
+            display: inline-flex; align-items: center; justify-content: center;
+            background: #27ae60; color: white; min-width: 35px; height: 35px;
+            border-radius: 50%; font-size: 0.85em; font-family: 'Segoe UI', sans-serif;
+            flex-shrink: 0;
+        }
+        
+        .detail-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;
+        }
+        .detail-card {
+            background: white; padding: 15px; border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .detail-card h4 {
+            color: #1a5276; margin-bottom: 10px; font-size: 1em;
+            padding-bottom: 8px; border-bottom: 2px solid #e0e0e0;
+        }
+        .detail-row {
+            display: flex; justify-content: space-between; padding: 4px 0;
+            border-bottom: 1px solid #f0f0f0; font-size: 0.9em;
+        }
+        .detail-row .label { color: #666; }
+        .detail-row .value { font-weight: 600; color: #1a5276; }
+        
+        .tajwid-detail {
+            background: white; padding: 12px; margin: 8px 0;
+            border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .tajwid-detail .word { font-family: 'Traditional Arabic', sans-serif; font-size: 1.3em; color: #1a5276; }
+        .tajwid-detail .rule { 
+            display: inline-block; background: #e8f6f3; color: #27ae60;
+            padding: 3px 10px; border-radius: 15px; font-size: 0.85em; margin: 3px;
+        }
+        .tajwid-detail .location { color: #666; font-size: 0.85em; margin-top: 5px; }
+        
+        .nahwu-tag {
+            display: inline-block; padding: 3px 10px; border-radius: 15px;
+            font-size: 0.8em; margin: 2px;
+        }
+        .nahwu-ism { background: #e3f2fd; color: #1565c0; }
+        .nahwu-fiil { background: #e8f5e9; color: #2e7d32; }
+        .nahwu-harf { background: #fff3e0; color: #ef6c00; }
+        .nahwu-mubtada { background: #f3e5f5; color: #7b1fa2; }
+        .nahwu-khabar { background: #fce4ec; color: #c2185b; }
+        .nahwu-fail { background: #e0f2f1; color: #00695c; }
+        .nahwu-mafoul { background: #f1f8e9; color: #558b2f; }
+        
+        .sub-section {
+            background: white; padding: 15px; border-radius: 10px;
+            margin: 10px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .sub-section h4 {
+            color: #1a5276; margin-bottom: 10px; font-size: 1em;
+        }
+        
+        .debug-section {
+            background: #fff8e1; border: 2px dashed #f9a825;
+            border-radius: 10px; padding: 15px; margin-bottom: 20px;
+        }
+        .debug-section h4 { color: #f57f17; margin-bottom: 10px; }
+        .char-debug {
+            display: inline-block; padding: 5px 10px; margin: 3px;
+            background: white; border-radius: 5px; font-family: monospace;
+            font-size: 0.85em;
+        }
+        .char-debug .char { font-size: 1.5em; color: #1a5276; }
+        .char-debug .code { color: #999; font-size: 0.75em; }
+        .char-debug .type { color: #27ae60; font-size: 0.8em; }
+        
+        /* NEW: Position letter styles */
+        .pos-1 { background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border-left: 4px solid #2e7d32; }
+        .pos-2 { background: linear-gradient(135deg, #e3f2fd, #bbdefb); border-left: 4px solid #1565c0; }
+        .pos-3 { background: linear-gradient(135deg, #fff3e0, #ffe0b2); border-left: 4px solid #ef6c00; }
+        .pos-4 { background: linear-gradient(135deg, #fce4ec, #f8bbd9); border-left: 4px solid #c2185b; }
+        .pos-5 { background: linear-gradient(135deg, #f3e5f5, #e1bee7); border-left: 4px solid #7b1fa2; }
+        .pos-6 { background: linear-gradient(135deg, #e0f2f1, #b2dfdb); border-left: 4px solid #00695c; }
+        .pos-7 { background: linear-gradient(135deg, #fff8e1, #ffecb3); border-left: 4px solid #f57f17; }
+        .pos-8 { background: linear-gradient(135deg, #efebe9, #d7ccc8); border-left: 4px solid #5d4037; }
+        
+        .repeat-card {
+            background: white; padding: 12px; border-radius: 10px;
+            margin: 6px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-left: 4px solid #3949ab;
+        }
+        .repeat-card .word-arabic {
+            font-family: 'Traditional Arabic', sans-serif;
+            font-size: 1.4em; color: #1a5276;
+        }
+        .repeat-card .count-badge {
+            display: inline-block; background: #3949ab; color: white;
+            padding: 3px 12px; border-radius: 15px; font-size: 0.85em; margin-left: 10px;
+        }
+        .repeat-card .locations {
+            color: #666; font-size: 0.8em; margin-top: 5px;
+        }
+        
+        .rule-repeat-card {
+            background: white; padding: 12px; border-radius: 10px;
+            margin: 6px 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .rule-repeat-card .rule-name {
+            font-weight: 600; color: #1a5276; font-size: 1em;
+        }
+        .rule-repeat-card .rule-count {
+            display: inline-block; background: #00897b; color: white;
+            padding: 3px 12px; border-radius: 15px; font-size: 0.85em; margin-left: 10px;
+        }
+        .rule-repeat-card .rule-locations {
+            color: #666; font-size: 0.8em; margin-top: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            .container { padding: 15px; }
+            h1 { font-size: 1.4em; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            th, td { padding: 6px; font-size: 0.8em; }
+            .arabic { font-size: 1.1em; }
+            .detail-grid { grid-template-columns: 1fr; }
+        }
+        
+        @media print {
+            body { background: white; }
+            .tabs, .tab-content:not(.active), .btn-group { display: none; }
+            .tab-content.active { display: block !important; }
+            .section { display: block !important; page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📖 Analisis Lengkap Al-Quran</h1>
+        <p class="subtitle">Huruf, Himpunan, Posisi, Tajwid & Nahwu - Perhitungan Tepat</p>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('api', this)">🌐 API Online</button>
+            <button class="tab" onclick="switchTab('ocr', this)">📷 Scan OCR</button>
+            <button class="tab" onclick="switchTab('manual', this)">✏️ Paste Manual</button>
+        </div>
+        
+        <!-- TAB API -->
+        <div id="tab-api" class="tab-content active">
+            <div class="api-section">
+                <h3>🌐 Ambil Data dari API Al-Quran</h3>
+                <div class="surah-selector">
+                    <div class="form-group">
+                        <label>Pilih Surat</label>
+                        <select id="surahSelect" onchange="updateSurahInfo()">
+                            <option value="">-- Pilih Surat --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nomor Surat</label>
+                        <input type="number" id="apiNomorSurat" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Jumlah Ayat</label>
+                        <input type="number" id="apiJumlahAyat" readonly>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-info" onclick="fetchSurahList()">📋 Muat Daftar Surat</button>
+                    <button class="btn btn-primary" onclick="fetchFromAPI()" id="btnFetchAPI">🚀 Ambil & Analisis</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB OCR -->
+        <div id="tab-ocr" class="tab-content">
+            <div class="ocr-section">
+                <h3>📷 Scan Gambar Al-Quran (OCR)</h3>
+                <p style="color:#666; margin-bottom:15px;">Upload gambar/screenshot halaman Al-Quran</p>
+                <div class="file-input-wrapper" style="position:relative; overflow:hidden; display:inline-block;">
+                    <input type="file" id="imageInput" accept="image/*" onchange="handleImageUpload(event)" style="position:absolute; left:-9999px;">
+                    <label for="imageInput" style="display:inline-block; padding:12px 30px; background:linear-gradient(135deg, #e74c3c, #c0392b); color:white; border-radius:50px; cursor:pointer;">📁 Pilih Gambar</label>
+                </div>
+                <img id="imagePreview" style="max-width:100%; max-height:400px; margin:15px auto; border-radius:10px; display:none; box-shadow:0 2px 10px rgba(0,0,0,0.2);">
+                <div class="progress-container" id="ocrProgress">
+                    <div class="progress-bar" id="ocrProgressBar">0%</div>
+                </div>
+                <div class="btn-group" style="margin-top:15px;">
+                    <button class="btn btn-primary" onclick="startOCR()" id="btnOCR" disabled>🔍 Mulai OCR</button>
+                    <button class="btn btn-warning" onclick="clearOCR()">🗑️ Bersihkan</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TAB MANUAL -->
+        <div id="tab-manual" class="tab-content">
+            <div class="input-section">
+                <h3>✏️ Paste Ayat Manual</h3>
+                <textarea id="ayatInput" placeholder="بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ
+ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+مَٰلِكِ يَوْمِ ٱلدِّينِ
+إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ
+ٱهْدِنَا ٱلصِّرَٰطَ ٱلْمُسْتَقِيمَ
+صِرَٰطَ ٱلَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ ٱلْمَغْضُوبِ عَلَيْهِمْ وَلَا ٱلضَّآلِّينَ"></textarea>
+                <div class="input-info">
+                    <div class="info-box">📝 <span>Ayat:</span> <span id="ayatCount">0</span></div>
+                    <div class="info-box">📊 <span>Huruf Total:</span> <span id="hurufTotalCount">0</span></div>
+                    <div class="info-box">🔤 <span>Huruf Murni:</span> <span id="hurufMurniCount">0</span></div>
+                    <div class="info-box">🕌 <span>Harakat:</span> <span id="harakatCount">0</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="alertBox" class="alert"></div>
+        
+        <div id="loadingSection" class="loading">
+            <div class="spinner"></div>
+            <div id="loadingText">Sedang memproses...</div>
+        </div>
+        
+        <div class="btn-group" id="globalAnalyzeBtn" style="display:none;">
+            <button class="btn btn-primary" onclick="analyzeCurrentText()">🔍 Analisis Detail</button>
+            <button class="btn btn-purple" onclick="toggleDebug()">🔬 Debug Karakter</button>
+            <button class="btn btn-secondary" onclick="clearAll()">🗑️ Bersihkan</button>
+        </div>
+        
+        <!-- DEBUG SECTION -->
+        <div id="debugSection" class="debug-section" style="display:none;">
+            <h4>🔬 Debug Karakter per Ayat</h4>
+            <div id="debugContent"></div>
+        </div>
+        
+        <!-- RESULTS -->
+        <div id="results">
+            <div id="ringkasanSection" class="section">
+                <h2>📊 Ringkasan Surat</h2>
+                <div class="stats-grid" id="ringkasanStats"></div>
+            </div>
+            
+            <!-- NEW: POSISI HURUF MAYORITAS -->
+            <div id="posisiHurufSection" class="section">
+                <h2>📍 Huruf Mayoritas per Posisi dalam Kata</h2>
+                <div class="detail-grid" id="posisiHurufGrid"></div>
+            </div>
+            
+            <!-- NEW: KATA BERULANG -->
+            <div id="kataBerulangSection" class="section">
+                <h2>🔄 Kata Berulang</h2>
+                <div id="kataBerulangContent"></div>
+            </div>
+            
+            <div id="himpunanSection" class="section">
+                <h2>📚 Himpunan Huruf Lengkap</h2>
+                <div class="detail-grid" id="himpunanGrid"></div>
+            </div>
+            
+            <div id="frekuensiSection" class="section">
+                <h2>📈 Frekuensi Huruf Murni (Tanpa Harakat)</h2>
+                <div style="overflow-x: auto;">
+                    <table id="frekuensiTable">
+                        <thead><tr>
+                            <th>No</th><th>Huruf</th><th>Jumlah</th><th>Persentase</th>
+                            <th>Di Awal</th><th>Di Tengah</th><th>Di Akhir</th><th>Visual</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="harakatSection" class="section">
+                <h2>🎵 Detail Harakat & Tanda</h2>
+                <div class="detail-grid" id="harakatGrid"></div>
+            </div>
+            
+            <div id="himpunanLaSection" class="section">
+                <h2>🔗 Himpunan Lam + Harakat</h2>
+                <div class="detail-grid" id="himpunanLaGrid"></div>
+            </div>
+            
+            <div id="tajwidSection" class="section">
+                <h2>🕌 Analisis Tajwid Detail</h2>
+                <div id="tajwidContent"></div>
+            </div>
+            
+            <!-- NEW: KAIDAH TAJWID BERULANG -->
+            <div id="tajwidBerulangSection" class="section">
+                <h2>🕌 Kaidah Tajwid Berulang</h2>
+                <div id="tajwidBerulangContent"></div>
+            </div>
+            
+            <div id="nahwuSection" class="section">
+                <h2>📖 Analisis Nahwu (Tentatif)</h2>
+                <div id="nahwuContent"></div>
+            </div>
+            
+            <!-- NEW: KAIDAH NAHWU BERULANG -->
+            <div id="nahwuBerulangSection" class="section">
+                <h2>📖 Kaidah Nahwu Berulang</h2>
+                <div id="nahwuBerulangContent"></div>
+            </div>
+            
+            <div id="detailSection" class="section">
+                <h2>📋 Detail per Ayat</h2>
+                <div class="ayah-list" id="ayahList"></div>
+            </div>
+            
+            <div id="daftarAyatSection" class="section">
+                <h2>📖 Daftar Ayat Lengkap</h2>
+                <div class="ayah-list" id="daftarAyatList"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ==================== KONFIGURASI LENGKAP ====================
+
+// Daftar KODE UNICODE yang termasuk HURUF ARAB (bukan harakat/tanda)
+const HURUF_ARAB_UNICODE = new Set([
+    // Huruf dasar Arab
+    0x0621, // ء Hamza
+    0x0622, // آ Alif madd
+    0x0623, // أ Alif hamza atas
+    0x0624, // ؤ Waw hamza
+    0x0625, // إ Alif hamza bawah
+    0x0626, // ئ Ya hamza
+    0x0627, // ا Alif
+    0x0628, // ب Ba
+    0x0629, // ة Ta marbutah
+    0x062A, // ت Ta
+    0x062B, // ث Tsa
+    0x062C, // ج Jim
+    0x062D, // ح Ha
+    0x062E, // خ Kha
+    0x062F, // د Dal
+    0x0630, // ذ Dzal
+    0x0631, // ر Ra
+    0x0632, // ز Zay
+    0x0633, // س Sin
+    0x0634, // ش Syin
+    0x0635, // ص Shad
+    0x0636, // ض Dhad
+    0x0637, // ط Tha
+    0x0638, // ظ Dzha
+    0x0639, // ع Ain
+    0x063A, // غ Ghain
+    0x063B, // ػ
+    0x063C, // ؼ
+    0x063D, // ؽ
+    0x063E, // ؾ
+    0x063F, // ؿ
+    0x0640, // ـ Tatwil
+    0x0641, // ف Fa
+    0x0642, // ق Qaf
+    0x0643, // ك Kaf
+    0x0644, // ل Lam
+    0x0645, // م Mim
+    0x0646, // ن Nun
+    0x0647, // ه Ha
+    0x0648, // و Waw
+    0x0649, // ى Alif maqsurah (arabic letter alef maksura)
+    0x064A, // ي Ya
+    // Extended Arabic
+    0x0670, // ٰ Alif Khanjariyah / Dagger Alif
+    0x0671, // ٱ Alif wasla
+    0x0672, // ٲ
+    0x0673, // ٳ
+    0x0674, // ٴ High hamza
+    0x0675, // ٵ
+    0x0676, // ٶ
+    0x0677, // ٷ
+    0x0678, // ٸ
+    0x0679, // ٹ
+    0x067A, // ٺ
+    0x067B, // ٻ
+    0x067C, // ټ
+    0x067D, // ٽ
+    0x067E, // پ
+    0x067F, // ٿ
+    0x0680, // ڀ
+    0x0681, // ځ
+    0x0682, // ڂ
+    0x0683, // ڃ
+    0x0684, // ڄ
+    0x0685, // څ
+    0x0686, // چ
+    0x0687, // ڇ
+    0x0688, // ڈ
+    0x0689, // ډ
+    0x068A, // ڊ
+    0x068B, // ڋ
+    0x068C, // ڌ
+    0x068D, // ڍ
+    0x068E, // ڎ
+    0x068F, // ڏ
+    0x0690, // ڐ
+    0x0691, // ڑ
+    0x0692, // ڒ
+    0x0693, // ړ
+    0x0694, // ڔ
+    0x0695, // ڕ
+    0x0696, // ږ
+    0x0697, // ڗ
+    0x0698, // ژ
+    0x0699, // ڙ
+    0x069A, // ښ
+    0x069B, // ڛ
+    0x069C, // ڜ
+    0x069D, // ڝ
+    0x069E, // ڞ
+    0x069F, // ڟ
+    0x06A0, // ڠ
+    0x06A1, // ڡ
+    0x06A2, // ڢ
+    0x06A3, // ڣ
+    0x06A4, // ڤ
+    0x06A5, // ڥ
+    0x06A6, // ڦ
+    0x06A7, // ڧ
+    0x06A8, // ڨ
+    0x06A9, // ک
+    0x06AA, // ڪ
+    0x06AB, // ګ
+    0x06AC, // ڬ
+    0x06AD, // ڭ
+    0x06AE, // ڮ
+    0x06AF, // گ
+    0x06B0, // ڰ
+    0x06B1, // ڱ
+    0x06B2, // ڲ
+    0x06B3, // ڳ
+    0x06B4, // ڴ
+    0x06B5, //ڵ
+    0x06B6, // ڶ
+    0x06B7, // ڷ
+    0x06B8, // ڸ
+    0x06B9, // ڹ
+    0x06BA, // ں
+    0x06BB, // ڻ
+    0x06BC, // ڼ
+    0x06BD, // ڽ
+    0x06BE, // ھ
+    0x06BF, // ڿ
+    0x06C0, // ۀ
+    0x06C1, // ہ
+    0x06C2, // ۂ
+    0x06C3, // ۃ
+    0x06C4, // ۄ
+    0x06C5, // ۅ
+    0x06C6, // ۆ
+    0x06C7, // ۇ
+    0x06C8, // ۈ
+    0x06C9, // ۉ
+    0x06CA, // ۊ
+    0x06CB, // ۋ
+    0x06CC, // ی
+    0x06CD, // ۍ
+    0x06CE, // ێ
+    0x06CF, // ۏ
+    0x06D0, // ې
+    0x06D1, // ۑ
+    0x06D2, // ے
+    0x06D3, // ۓ
+    0x06D4, // ۔
+    0x06D5, // ە
+    // Arabic Presentation Forms-A
+    0xFB50, 0xFB51, // ﭑ ﭒ
+    0xFB52, 0xFB53, 0xFB54, 0xFB55, // ﭒ-ﭕ Peh
+    0xFB56, 0xFB57, 0xFB58, 0xFB59, // ﭖ-ﭙ Beeh
+    0xFB5A, 0xFB5B, 0xFB5C, 0xFB5D, // ﭚ-ﭝ Teh
+    0xFB5E, 0xFB5F, 0xFB60, 0xFB61, // ﭞ-ﭡ Tteh
+    0xFB62, 0xFB63, 0xFB64, 0xFB65, // ﭢ-ﭥ Veh
+    0xFB66, 0xFB67, 0xFB68, 0xFB69, // ﭦ-ﭩ Peheh
+    0xFB6A, 0xFB6B, 0xFB6C, 0xFB6D, // ﭪ-ﭭ Dyeh
+    0xFB6E, 0xFB6F, 0xFB70, 0xFB71, // ﭮ-ﭱ Nyeh
+    0xFB72, 0xFB73, 0xFB74, 0xFB75, // ﭲ-ﭵ Tcheh
+    0xFB76, 0xFB77, 0xFB78, 0xFB79, // ﭶ-ﭹ Jeh
+    0xFB7A, 0xFB7B, 0xFB7C, 0xFB7D, // ﭺ-ﭽ Gaf
+    0xFB7E, 0xFB7F, 0xFB80, 0xFB81, // ﭾ- Gaf with ring
+    0xFB82, 0xFB83, // - Nun ghunna
+    0xFB84, 0xFB85, // - Rnoon
+    0xFB86, 0xFB87, // - Heh with yeh
+    0xFB88, 0xFB89, // - Yeh with tail
+    0xFB8A, 0xFB8B, // - Yeh small v
+    0xFB8C, 0xFB8D, // - Waw ring
+    0xFB8E, 0xFB8F, 0xFB90, 0xFB91, // - Kirghiz oe
+    0xFB92, 0xFB93, 0xFB94, 0xFB95, // - Oe
+    0xFB96, 0xFB97, 0xFB98, 0xFB99, // - Yu
+    0xFB9A, 0xFB9B, 0xFB9C, 0xFB9D, // - E
+    0xFB9E, 0xFB9F, // - Uighur kazakh
+    0xFBA0, 0xFBA1, 0xFBA2, 0xFBA3, // - Ve
+    0xFBA4, 0xFBA5, 0xFBA6, 0xFBA7, // - Kirghiz oe
+    0xFBA8, 0xFBA9, 0xFBAA, 0xFBAB, // - Oe
+    0xFBAC, 0xFBAD, 0xFBAE, 0xFBAF, // - Yu
+    0xFBB0, 0xFBB1, // - Mongolian
+    // Arabic Presentation Forms-B - Final/Initial/Medial/Isolated forms
+    0xFE80, // ﺀ Hamza isolated
+    0xFE81, 0xFE82, // ﺁ Alif madd
+    0xFE83, 0xFE84, // ﺃ Alif hamza top
+    0xFE85, 0xFE86, // ﺅ Waw hamza
+    0xFE87, 0xFE88, // ﺇ Alif hamza bottom
+    0xFE89, 0xFE8A, 0xFE8B, 0xFE8C, // ﺉ Ya hamza
+    0xFE8D, 0xFE8E, // ﺍ Alif
+    0xFE8F, 0xFE90, 0xFE91, 0xFE92, // ﺏ Ba
+    0xFE93, 0xFE94, // ﺓ Ta marbutah
+    0xFE95, 0xFE96, 0xFE97, 0xFE98, // ﺕ Ta
+    0xFE99, 0xFE9A, 0xFE9B, 0xFE9C, // ﺙ Tsa
+    0xFE9D, 0xFE9E, 0xFE9F, 0xFEA0, // ﺝ Jim
+    0xFEA1, 0xFEA2, 0xFEA3, 0xFEA4, // ﺡ Ha
+    0xFEA5, 0xFEA6, 0xFEA7, 0xFEA8, // ﺥ Kha
+    0xFEA9, 0xFEAA, // ﺩ Dal
+    0xFEAB, 0xFEAC, // ﺫ Dzal
+    0xFEAD, 0xFEAE, // ﺭ Ra
+    0xFEAF, 0xFEB0, // ﺯ Zay
+    0xFEB1, 0xFEB2, 0xFEB3, 0xFEB4, // ﺱ Sin
+    0xFEB5, 0xFEB6, 0xFEB7, 0xFEB8, // ﺵ Syin
+    0xFEB9, 0xFEBA, 0xFEBB, 0xFEBC, // ﺹ Shad
+    0xFEBD, 0xFEBE, 0xFEBF, 0xFEC0, // ﺽ Dhad
+    0xFEC1, 0xFEC2, 0xFEC3, 0xFEC4, // ﻁ Tha
+    0xFEC5, 0xFEC6, 0xFEC7, 0xFEC8, // ﻅ Dzha
+    0xFEC9, 0xFECA, 0xFECB, 0xFECC, // ﻉ Ain
+    0xFECD, 0xFECE, 0xFECF, 0xFED0, // ﻍ Ghain
+    0xFED1, 0xFED2, 0xFED3, 0xFED4, // ﻑ Fa
+    0xFED5, 0xFED6, 0xFED7, 0xFED8, // ﻕ Qaf
+    0xFED9, 0xFEDA, 0xFEDB, 0xFEDC, // ﻙ Kaf
+    0xFEDD, 0xFEDE, 0xFEDF, 0xFEE0, // ﻝ Lam
+    0xFEE1, 0xFEE2, 0xFEE3, 0xFEE4, // ﻡ Mim
+    0xFEE5, 0xFEE6, 0xFEE7, 0xFEE8, // ﻥ Nun
+    0xFEE9, 0xFEEA, 0xFEEB, 0xFEEC, // ﻩ Ha
+    0xFEED, 0xFEEE, // ﻭ Waw
+    0xFEEF, 0xFEF0, // ﻯ Alif maqsurah
+    0xFEF1, 0xFEF2, 0xFEF3, 0xFEF4, // ﻱ Ya
+    // Arabic Extended-A
+    0x08A0, 0x08A1, // ࢠ ࢡ
+    0x08A2, 0x08A3, // ࢢ ࢣ
+    0x08A4, 0x08A5, // ࢤ ࢥ
+    0x08A6, 0x08A7, // ࢦ ࢧ
+    0x08A8, 0x08A9, // ࢨ ࢩ
+    0x08AA, 0x08AB, 0x08AC, // ࢪ ࢫ ࢬ
+    0x08AD, 0x08AE, 0x08AF, // ࢭ ࢮ ࢯ
+    0x08B0, 0x08B1, 0x08B2, // ࢰ ࢱ ࢲ
+    0x08B3, 0x08B4, // ࢳ ࢴ
+    0x08B5, // ࢵ
+    0x08B6, 0x08B7, 0x08B8, // ࢶ ࢷ ࢸ
+    0x08B9, 0x08BA, // ࢹ ࢺ
+    0x08BB, 0x08BC, 0x08BD, 0x08BE, 0x08BF, // ࢻ-ࢿ
+    0x08C0, 0x08C1, 0x08C2, 0x08C3, 0x08C4, 0x08C5, 0x08C6, 0x08C7, // ࣀ-ࣇ
+    0x08C8, 0x08C9, // ࣈ ࣉ
+    0x08CA, 0x08CB, 0x08CC, 0x08CD, 0x08CE, 0x08CF, // ࣊-࣏
+    0x08D0, 0x08D1, 0x08D2, 0x08D3, // ࣐-࣓
+    // Arabic Mathematical
+    0x1EE00, 0x1EE01, 0x1EE02, 0x1EE03, // Mathematical Arabic
+    0x1EE05, 0x1EE06, // 𞸅 𞸆
+    0x1EE07, 0x1EE08, 0x1EE09, 0x1EE0A, 0x1EE0B, // 𞸇-𞸋
+    0x1EE0D, 0x1EE0E, 0x1EE0F, // 𞸍-𞸏
+    0x1EE10, 0x1EE11, 0x1EE12, 0x1EE13, 0x1EE14, // 𞸐-𞸔
+    0x1EE15, 0x1EE16, 0x1EE17, 0x1EE18, // 𞸕-𞸘
+    0x1EE19, 0x1EE1A, 0x1EE1B, 0x1EE1C, // 𞸙-𞸜
+    0x1EE1D, 0x1EE1E, 0x1EE1F, // 𞸝-𞸟
+    0x1EE21, 0x1EE22, // 𞸡 𞸢
+    0x1EE24, // 𞸤
+    0x1EE27, // 𞸧
+    0x1EE29, 0x1EE2A, 0x1EE2B, 0x1EE2C, 0x1EE2D, 0x1EE2E, 0x1EE2F, // 𞸩-𞸯
+    0x1EE30, 0x1EE31, 0x1EE32, // 𞸰-𞸲
+    0x1EE34, 0x1EE35, // 𞸴 𞸵
+    0x1EE36, 0x1EE37, // 𞸶 𞸷
+    0x1EE39, // 𞸹
+    0x1EE3B, // 𞸻
+    0x1EE42, // 𞹂
+    0x1EE47, // 𞹇
+    0x1EE49, // 𞹉
+    0x1EE4B, // 𞹋
+    0x1EE4D, 0x1EE4E, 0x1EE4F, // 𞹍-𞹏
+    0x1EE51, 0x1EE52, // 𞹑 𞹒
+    0x1EE54, // 𞹔
+    0x1EE57, // 𞹗
+    0x1EE59, // 𞹙
+    0x1EE5B, // 𞹛
+    0x1EE5D, // 𞹝
+    0x1EE5F, // 𞹟
+    0x1EE61, 0x1EE62, // 𞹡 𞹢
+    0x1EE64, // 𞹤
+    0x1EE67, 0x1EE68, 0x1EE69, 0x1EE6A, // 𞹧-𞹪
+    0x1EE6C, 0x1EE6D, 0x1EE6E, 0x1EE6F, // 𞹬-𞹯
+    0x1EE70, 0x1EE71, 0x1EE72, // 𞹰-𞹲
+    0x1EE74, 0x1EE75, 0x1EE76, 0x1EE77, // 𞹴-𞹷
+    0x1EE79, 0x1EE7A, 0x1EE7B, 0x1EE7C, 0x1EE7D, 0x1EE7E, // 𞹹-𞹾
+    0x1EE80, 0x1EE81, 0x1EE82, 0x1EE83, 0x1EE84, 0x1EE85, 0x1EE86, // 𞺀-𞺆
+    0x1EE87, 0x1EE88, 0x1EE89, 0x1EE8A, 0x1EE8B, 0x1EE8C, 0x1EE8D, 0x1EE8E, 0x1EE8F, // 𞺇-𞺏
+    0x1EE90, 0x1EE91, 0x1EE92, 0x1EE93, 0x1EE94, 0x1EE95, 0x1EE96, 0x1EE97, 0x1EE98, 0x1EE99, // 𞺐-𞺙
+    0x1EE9A, 0x1EE9B, // 𞺚 𞺛
+    0x1EEA1, 0x1EEA2, 0x1EEA3, // 𞺡-𞺣
+    0x1EEA5, 0x1EEA6, 0x1EEA7, 0x1EEA8, 0x1EEA9, 0x1EEAA, 0x1EEAB, 0x1EEAC, 0x1EEAD, 0x1EEAE, 0x1EEAF, // 𞺥-𞺯
+    0x1EEB0, 0x1EEB1, 0x1EEB2, 0x1EEB3, 0x1EEB4, 0x1EEB5, 0x1EEB6, 0x1EEB7, 0x1EEB8, 0x1EEB9, 0x1EEBA, 0x1EEBB, // 𞺰-𞺻
+]);
+
+// HARAKAT dan TANDA (bukan huruf)
+const HARAKAT_TANDA_UNICODE = new Set([
+    0x064B, // ً Fathatan
+    0x064C, // ٌ Dammatan
+    0x064D, // ٍ Kasratan
+    0x064E, // َ Fatha
+    0x064F, // ُ Damma
+    0x0650, // ِ Kasra
+    0x0651, // ّ Shadda
+    0x0652, // ْ Sukun
+    0x0653, // ٓ Madd above
+    0x0654, // ٔ Hamza above
+    0x0655, // ٕ Hamza below
+    0x0656, // ٖ Subscript alef
+    0x0657, // ٗ Inverted damma
+    0x0658, // ٘ Mark noon ghunna
+    0x0659, // ٙ Zwarakay
+    0x065A, // ٚ Vowel sign small v
+    0x065B, // ٛ Inverted small v
+    0x065C, // ٜ Sign winnus
+    0x065D, // ٝ Fatha with 2 dots
+    0x065E, // ٞ Damma with dot
+    0x065F, // ٟ Wavy hamza below
+    0x0670, // ٰ Superscript alef (ini bisa jadi huruf atau tanda, tergantung konteks)
+    // Extended diacritics
+    0x06D6, // ۖ Small high ligature sad with lam with alef maksura
+    0x06D7, // ۗ Small high ligature qaf with lam with alef maksura
+    0x06D8, // ۘ Small high meem initial form
+    0x06D9, // ۙ Small high lam alef
+    0x06DA, // ۚ Small high jeem
+    0x06DB, // ۛ Small high three dots
+    0x06DC, // ۜ Small high seen
+    0x06DD, // ۝ End of ayah
+    0x06DE, // ۞ Start of rub el hizb
+    0x06DF, // ۟ Small high rounded zero
+    0x06E0, // ۠ Small high upright rectangular zero
+    0x06E1, // ۡ Small high dotless head of khah
+    0x06E2, // ۢ Small high meem isolated form
+    0x06E3, // ۣ Small low seen
+    0x06E4, // ۤ Small high madda
+    0x06E5, // ۥ Small waw
+    0x06E6, // ۦ Small ya
+    0x06E7, // ۧ Small high yeh
+    0x06E8, // ۨ Small high noon
+    0x06E9, // ۩ Place of sajdah
+    0x06EA, // ۪ Empty centre low stop
+    0x06EB, // ۫ Empty centre high stop
+    0x06EC, // ۬ Rounded high stop with filled centre
+    0x06ED, // ۭ Small low meem
+    // Arabic Extended-A diacritics
+    0x08D4, 0x08D5, 0x08D6, 0x08D7, 0x08D8, 0x08D9, 0x08DA, 0x08DB, 0x08DC, 0x08DD, 0x08DE, 0x08DF, // ࣔ-ࣟ
+    0x08E0, 0x08E1, 0x08E2, 0x08E3, 0x08E4, 0x08E5, 0x08E6, 0x08E7, 0x08E8, 0x08E9, 0x08EA, 0x08EB, 0x08EC, 0x08ED, 0x08EE, 0x08EF, // ࣠-࣯
+    0x08F0, 0x08F1, 0x08F2, 0x08F3, 0x08F4, 0x08F5, 0x08F6, 0x08F7, 0x08F8, 0x08F9, 0x08FA, 0x08FB, 0x08FC, 0x08FD, 0x08FE, 0x08FF, // ࣰ-ࣿ
+    // Arabic Presentation Forms - Diacritics
+    0xFE70, 0xFE71, // ﹰ ﹱ Fathatan
+    0xFE72, // ﹲ Dammatan
+    0xFE73, // ﹳ Tail fragment
+    0xFE74, // ﹴ Kasratan
+    0xFE76, 0xFE77, // ﹶ ﹷ Fatha
+    0xFE78, 0xFE79, // ﹸ ﹹ Damma
+    0xFE7A, 0xFE7B, // ﹺ ﹻ Kasra
+    0xFE7C, 0xFE7D, // ﹼ ﹽ Shadda
+    0xFE7E, 0xFE7F, // ﹾ ﹿ Sukun
+    // Spasi dan kontrol
+    0x0020, // Space
+    0x00A0, // Non-breaking space
+    0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, // En quad - Hair space
+    0x200B, 0x200C, 0x200D, 0x200E, 0x200F, // Zero width chars
+    0x2028, 0x2029, // Line/paragraph separator
+    0x202F, // Narrow no-break space
+    0x205F, // Medium mathematical space
+    0x2060, // Word joiner
+    0xFEFF, // Zero width no-break space (BOM)
+    // Tanda baca
+    0x060C, // ، Arabic comma
+    0x061B, // ؛ Arabic semicolon
+    0x061F, // ؟ Arabic question mark
+    0x066A, // ٪ Arabic percent sign
+    0x066B, // ٫ Arabic decimal separator
+    0x066C, // ٬ Arabic thousands separator
+    0x066D, // ٭ Arabic five pointed star
+    0x06D4, // ۔ Arabic full stop
+    // Digit Arab
+    0x0660, 0x0661, 0x0662, 0x0663, 0x0664, 0x0665, 0x0666, 0x0667, 0x0668, 0x0669, // ٠-٩
+    0x06F0, 0x06F1, 0x06F2, 0x06F3, 0x06F4, 0x06F5, 0x06F6, 0x06F7, 0x06F8, 0x06F9, // ۰-۹ Extended
+    // Tanda baca lain
+    0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029,
+    0x002A, 0x002B, 0x002C, 0x002D, 0x002E, 0x002F,
+    0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037, 0x0038, 0x0039,
+    0x003A, 0x003B, 0x003C, 0x003D, 0x003E, 0x003F, 0x0040,
+    0x005B, 0x005C, 0x005D, 0x005E, 0x005F, 0x0060,
+    0x007B, 0x007C, 0x007D, 0x007E,
+    // Newline
+    0x000A, 0x000D, 0x0009,
+]);
+
+// Huruf murni dengan nama
+const HURUF_MURNI = {
+    'ا': 'Alif', 'ب': 'Ba', 'ت': 'Ta', 'ث': 'Tsa', 'ج': 'Jim',
+    'ح': 'Ha', 'خ': 'Kha', 'د': 'Dal', 'ذ': 'Dzal', 'ر': 'Ra',
+    'ز': 'Zay', 'س': 'Sin', 'ش': 'Syin', 'ص': 'Shad', 'ض': 'Dhad',
+    'ط': 'Tha', 'ظ': 'Dzha', 'ع': 'Ain', 'غ': 'Ghain', 'ف': 'Fa',
+    'ق': 'Qaf', 'ك': 'Kaf', 'ل': 'Lam', 'م': 'Mim', 'ن': 'Nun',
+    'ه': 'Ha', 'و': 'Waw', 'ي': 'Ya'
+};
+
+// Mapping variasi ke huruf murni
+const VARIASI_KE_MURNI = {
+    // Alif dan variasinya
+    'ا': 'ا', 'ٱ': 'ا', 'آ': 'ا', 'أ': 'ا', 'إ': 'ا', 'ى': 'ا', 'ٰ': 'ا',
+    // Waw dan variasinya
+    'و': 'و', 'ؤ': 'و',
+    // Ya dan variasinya
+    'ي': 'ي', 'ئ': 'ي',
+    // Ha dan variasinya
+    'ه': 'ه', 'ة': 'ه',
+    // Sisanya sama
+    'ب': 'ب', 'ت': 'ت', 'ث': 'ث', 'ج': 'ج', 'ح': 'ح', 'خ': 'خ',
+    'د': 'د', 'ذ': 'ذ', 'ر': 'ر', 'ز': 'ز', 'س': 'س', 'ش': 'ش',
+    'ص': 'ص', 'ض': 'ض', 'ط': 'ط', 'ظ': 'ظ', 'ع': 'ع', 'غ': 'غ',
+    'ف': 'ف', 'ق': 'ق', 'ك': 'ك', 'ل': 'ل', 'م': 'م', 'ن': 'ن'
+};
+
+// Harakat dengan info
+const HARAKAT_INFO = {
+    'َ': { nama: 'Fathah', bunyi: 'a', jenis: 'harakat' },
+    'ِ': { nama: 'Kasrah', bunyi: 'i', jenis: 'harakat' },
+    'ُ': { nama: 'Dammah', bunyi: 'u', jenis: 'harakat' },
+    'ْ': { nama: 'Sukun', bunyi: 'mati', jenis: 'sukun' },
+    'ً': { nama: 'Fathatan', bunyi: 'an', jenis: 'tanwin' },
+    'ٍ': { nama: 'Kasratan', bunyi: 'in', jenis: 'tanwin' },
+    'ٌ': { nama: 'Dammatan', bunyi: 'un', jenis: 'tanwin' },
+    'ّ': { nama: 'Tasydid', bunyi: 'ganda', jenis: 'tasydid' },
+    'ٓ': { nama: 'Maddah', bunyi: 'panjang', jenis: 'madd' },
+};
+
+// Tanda waqf
+const TANDA_WAQF = {
+    'ۖ': { nama: 'Waqf Jaiz', arti: 'Boleh berhenti' },
+    'ۗ': { nama: 'Waqf Jaiz', arti: 'Boleh berhenti' },
+    'ۘ': { nama: 'Waqf Lazim', arti: 'Harus berhenti' },
+    'ۙ': { nama: 'Waqf Murakhkhas', arti: 'Berhenti lebih utama' },
+    'ۚ': { nama: 'Waqf Mujawwaz', arti: 'Boleh berhenti' },
+    'ۛ': { nama: 'Waqf Muqabbal', arti: 'Berhenti di ayat sebelumnya' },
+    'ۜ': { nama: 'Waqf Mushabbi bi\'l Wasl', arti: 'Lebih utama wasal' },
+       '۞': { nama: 'Rub\' Hizb', arti: 'Separuh hizb' },
+    '۩': { nama: 'Sajdah', arti: 'Tanda sujud' },
+};
+
+// Daftar surat
+const SURAH_NAMES = [
+    {n:1,name:"Al-Fatihah",ayah:7},{n:2,name:"Al-Baqarah",ayah:286},{n:3,name:"Ali Imran",ayah:200},
+    {n:4,name:"An-Nisa",ayah:176},{n:5,name:"Al-Ma'idah",ayah:120},{n:6,name:"Al-An'am",ayah:165},
+    {n:7,name:"Al-A'raf",ayah:206},{n:8,name:"Al-Anfal",ayah:75},{n:9,name:"At-Tawbah",ayah:129},
+    {n:10,name:"Yunus",ayah:109},{n:11,name:"Hud",ayah:123},{n:12,name:"Yusuf",ayah:111},
+    {n:13,name:"Ar-Ra'd",ayah:43},{n:14,name:"Ibrahim",ayah:52},{n:15,name:"Al-Hijr",ayah:99},
+    {n:16,name:"An-Nahl",ayah:128},{n:17,name:"Al-Isra",ayah:111},{n:18,name:"Al-Kahf",ayah:110},
+    {n:19,name:"Maryam",ayah:98},{n:20,name:"Taha",ayah:135},{n:21,name:"Al-Anbiya",ayah:112},
+    {n:22,name:"Al-Hajj",ayah:78},{n:23,name:"Al-Mu'minun",ayah:118},{n:24,name:"An-Nur",ayah:64},
+    {n:25,name:"Al-Furqan",ayah:77},{n:26,name:"Ash-Shu'ara",ayah:227},{n:27,name:"An-Naml",ayah:93},
+    {n:28,name:"Al-Qasas",ayah:88},{n:29,name:"Al-Ankabut",ayah:69},{n:30,name:"Ar-Rum",ayah:60},
+    {n:31,name:"Luqman",ayah:34},{n:32,name:"As-Sajdah",ayah:30},{n:33,name:"Al-Ahzab",ayah:73},
+    {n:34,name:"Saba",ayah:54},{n:35,name:"Fatir",ayah:45},{n:36,name:"Ya-Sin",ayah:83},
+    {n:37,name:"As-Saffat",ayah:182},{n:38,name:"Sad",ayah:88},{n:39,name:"Az-Zumar",ayah:75},
+    {n:40,name:"Ghafir",ayah:85},{n:41,name:"Fussilat",ayah:54},{n:42,name:"Ash-Shura",ayah:53},
+    {n:43,name:"Az-Zukhruf",ayah:89},{n:44,name:"Ad-Dukhan",ayah:59},{n:45,name:"Al-Jathiyah",ayah:37},
+    {n:46,name:"Al-Ahqaf",ayah:35},{n:47,name:"Muhammad",ayah:38},{n:48,name:"Al-Fath",ayah:29},
+    {n:49,name:"Al-Hujurat",ayah:18},{n:50,name:"Qaf",ayah:45},{n:51,name:"Adh-Dhariyat",ayah:60},
+    {n:52,name:"At-Tur",ayah:49},{n:53,name:"An-Najm",ayah:62},{n:54,name:"Al-Qamar",ayah:55},
+    {n:55,name:"Ar-Rahman",ayah:78},{n:56,name:"Al-Waqi'ah",ayah:96},{n:57,name:"Al-Hadid",ayah:29},
+    {n:58,name:"Al-Mujadilah",ayah:22},{n:59,name:"Al-Hashr",ayah:24},{n:60,name:"Al-Mumtahanah",ayah:13},
+    {n:61,name:"As-Saff",ayah:14},{n:62,name:"Al-Jumu'ah",ayah:11},{n:63,name:"Al-Munafiqun",ayah:11},
+    {n:64,name:"At-Taghabun",ayah:18},{n:65,name:"At-Talaq",ayah:12},{n:66,name:"At-Tahrim",ayah:12},
+    {n:67,name:"Al-Mulk",ayah:30},{n:68,name:"Al-Qalam",ayah:52},{n:69,name:"Al-Haqqah",ayah:52},
+    {n:70,name:"Al-Ma'arij",ayah:44},{n:71,name:"Nuh",ayah:28},{n:72,name:"Al-Jinn",ayah:28},
+    {n:73,name:"Al-Muzzammil",ayah:20},{n:74,name:"Al-Muddaththir",ayah:56},{n:75,name:"Al-Qiyamah",ayah:40},
+    {n:76,name:"Al-Insan",ayah:31},{n:77,name:"Al-Mursalat",ayah:50},{n:78,name:"An-Naba",ayah:40},
+    {n:79,name:"An-Nazi'at",ayah:46},{n:80,name:"Abasa",ayah:42},{n:81,name:"At-Takwir",ayah:29},
+    {n:82,name:"Al-Infitar",ayah:19},{n:83,name:"Al-Mutaffifin",ayah:36},{n:84,name:"Al-Inshiqaq",ayah:25},
+    {n:85,name:"Al-Buruj",ayah:22},{n:86,name:"At-Tariq",ayah:17},{n:87,name:"Al-A'la",ayah:19},
+    {n:88,name:"Al-Ghashiyah",ayah:26},{n:89,name:"Al-Fajr",ayah:30},{n:90,name:"Al-Balad",ayah:20},
+    {n:91,name:"Ash-Shams",ayah:15},{n:92,name:"Al-Layl",ayah:21},{n:93,name:"Ad-Duha",ayah:11},
+    {n:94,name:"Ash-Sharh",ayah:8},{n:95,name:"At-Tin",ayah:8},{n:96,name:"Al-Alaq",ayah:19},
+    {n:97,name:"Al-Qadr",ayah:5},{n:98,name:"Al-Bayyinah",ayah:8},{n:99,name:"Az-Zalzalah",ayah:8},
+    {n:100,name:"Al-Adiyat",ayah:11},{n:101,name:"Al-Qari'ah",ayah:11},{n:102,name:"At-Takathur",ayah:8},
+    {n:103,name:"Al-Asr",ayah:3},{n:104,name:"Al-Humazah",ayah:9},{n:105,name:"Al-Fil",ayah:5},
+    {n:106,name:"Quraysh",ayah:4},{n:107,name:"Al-Ma'un",ayah:7},{n:108,name:"Al-Kawthar",ayah:3},
+    {n:109,name:"Al-Kafirun",ayah:6},{n:110,name:"An-Nasr",ayah:3},{n:111,name:"Al-Masad",ayah:5},
+    {n:112,name:"Al-Ikhlas",ayah:4},{n:113,name:"Al-Falaq",ayah:5},{n:114,name:"An-Nas",ayah:6}
+];
+
+// Global state
+let CURRENT_TEXT = '';
+let CURRENT_AYAT_LIST = [];
+let OCR_IMAGE = null;
+let ANALYSIS_DATA = null;
+let DEBUG_MODE = false;
+
+// ==================== FUNGSI UTILITY KARAKTER ====================
+
+/**
+ * CEK apakah karakter adalah HURUF ARAB (bukan harakat/tanda)
+ * Menggunakan Unicode ranges yang komprehensif
+ */
+function isHurufArab(char) {
+    if (!char) return false;
+    const code = char.charCodeAt(0);
+    
+    // Cek di set huruf Arab
+    if (HURUF_ARAB_UNICODE.has(code)) return true;
+    
+    // Cek range huruf Arab dasar
+    if (code >= 0x0621 && code <= 0x064A) return true;
+    
+    // Cek extended Arabic
+    if (code >= 0x0671 && code <= 0x06D3) return true;
+    
+    // Cek Arabic Presentation Forms-A
+    if (code >= 0xFB50 && code <= 0xFBB1) return true;
+    
+    // Cek Arabic Presentation Forms-B
+    if (code >= 0xFE80 && code <= 0xFEF4) return true;
+    
+    // Cek Arabic Extended-A
+    if (code >= 0x08A0 && code <= 0x08FF) return true;
+    
+    // Cek Arabic Mathematical Alphabetic Symbols
+    if (code >= 0x1EE00 && code <= 0x1EEBB) return true;
+    
+    return false;
+}
+
+/**
+ * CEK apakah karakter adalah HARAKAT atau TANDA (bukan huruf)
+ */
+function isHarakatAtauTanda(char) {
+    if (!char) return false;
+    const code = char.charCodeAt(0);
+    
+    // Cek di set harakat/tanda
+    if (HARAKAT_TANDA_UNICODE.has(code)) return true;
+    
+    // Harakat dan tanda di atas (064B-065F)
+    if (code >= 0x064B && code <= 0x065F) return true;
+    
+    // Arabic signs (06D6-06ED)
+    if (code >= 0x06D6 && code <= 0x06ED) return true;
+    
+    // Arabic Presentation Forms - harakat
+    if (code >= 0xFE70 && code <= 0xFE7F) return true;
+    
+    // Spasi dan whitespace
+    if (code === 0x0020 || code === 0x00A0) return true;
+    if (code >= 0x2000 && code <= 0x200F) return true;
+    if (code === 0x202F || code === 0x205F || code === 0x2060 || code === 0xFEFF) return true;
+    
+    // Tanda baca umum
+    if (code === 0x060C || code === 0x061B || code === 0x061F || code === 0x06D4) return true;
+    if (code >= 0x066A && code <= 0x066D) return true;
+    
+    // Digit Arab
+    if (code >= 0x0660 && code <= 0x0669) return true;
+    if (code >= 0x06F0 && code <= 0x06F9) return true;
+    
+    // Newline dan tab
+    if (code === 0x000A || code === 0x000D || code === 0x0009) return true;
+    
+    return false;
+}
+
+/**
+ * Dapatkan huruf murni dari variasi
+ */
+function getHurufMurni(char) {
+    return VARIASI_KE_MURNI[char] || char;
+}
+
+/**
+ * Cek apakah karakter adalah huruf murni (29 huruf)
+ */
+function isHurufMurni29(char) {
+    return HURUF_MURNI[char] !== undefined;
+}
+
+/**
+ * Cek apakah karakter adalah harakat dengan bunyi
+ */
+function isHarakatBunyi(char) {
+    return HARAKAT_INFO[char] !== undefined;
+}
+
+/**
+ * Cek apakah karakter adalah tanda waqf
+ */
+function isTandaWaqf(char) {
+    return TANDA_WAQF[char] !== undefined;
+}
+
+/**
+ * Get karakter info untuk debug
+ */
+function getCharInfo(char) {
+    const code = char.charCodeAt(0);
+    const hex = 'U+' + code.toString(16).toUpperCase().padStart(4, '0');
+    
+    if (isHurufArab(char)) {
+        const murni = getHurufMurni(char);
+        return { type: 'huruf', hex, murni, nama: HURUF_MURNI[murni] || '?' };
+    }
+    if (isHarakatBunyi(char)) {
+        return { type: 'harakat', hex, nama: HARAKAT_INFO[char].nama, bunyi: HARAKAT_INFO[char].bunyi };
+    }
+    if (isTandaWaqf(char)) {
+        return { type: 'waqf', hex, nama: TANDA_WAQF[char].nama };
+    }
+    if (isHarakatAtauTanda(char)) {
+        return { type: 'tanda', hex, nama: 'Tanda lain' };
+    }
+    return { type: 'unknown', hex, nama: 'Tidak diketahui' };
+}
+
+// ==================== TAB SWITCHING ====================
+
+function switchTab(tabName, btn) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    
+    if (btn) btn.classList.add('active');
+    else document.querySelector(`.tab[onclick*="'${tabName}'"]`)?.classList.add('active');
+    
+    document.getElementById('tab-' + tabName).classList.add('active');
+    
+    document.getElementById('globalAnalyzeBtn').style.display = 
+        (tabName === 'manual' || tabName === 'ocr') ? 'flex' : 'none';
+}
+
+function showAlert(message, type) {
+    const alert = document.getElementById('alertBox');
+    alert.innerHTML = message;
+    alert.className = 'alert alert-' + type + ' active';
+    setTimeout(() => hideAlert(), 8000);
+}
+
+function hideAlert() {
+    document.getElementById('alertBox').className = 'alert';
+}
+
+function hideAllSections() {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+}
+
+// ==================== TAB: API ====================
+
+function fetchSurahList() {
+    const select = document.getElementById('surahSelect');
+    select.innerHTML = '<option value="">-- Pilih Surat --</option>';
+    SURAH_NAMES.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.n;
+        opt.textContent = `${s.n}. ${s.name} (${s.ayah} ayat)`;
+        select.appendChild(opt);
+    });
+    showAlert('✅ Daftar 114 surat berhasil dimuat!', 'success');
+}
+
+function updateSurahInfo() {
+    const num = parseInt(document.getElementById('surahSelect').value);
+    const surah = SURAH_NAMES.find(s => s.n === num);
+    if (surah) {
+        document.getElementById('apiNomorSurat').value = surah.n;
+        document.getElementById('apiJumlahAyat').value = surah.ayah;
+    }
+}
+
+async function fetchFromAPI() {
+    const surahNum = document.getElementById('surahSelect').value;
+    if (!surahNum) {
+        showAlert('⚠️ Silakan pilih surat terlebih dahulu!', 'error');
+        return;
+    }
+    
+    document.getElementById('loadingSection').classList.add('active');
+    document.getElementById('loadingText').textContent = 'Mengambil data dari API...';
+    hideAllSections();
+    hideAlert();
+    
+    try {
+        let data = null;
+        let success = false;
+        
+        // Coba equran.id (Indonesia, CORS-friendly)
+        try {
+            const resp = await fetch(`https://equran.id/api/surat/${surahNum}`);
+            const result = await resp.json();
+            if (result && result.ayat) {
+                data = {
+                    name: result.nama_latin || result.nama,
+                    number: result.nomor,
+                    numberOfAyahs: result.jumlah_ayat,
+                    ayahs: result.ayat.map(a => ({ 
+                        text: a.ar,
+                        latin: a.tr,
+                        terjemah: a.id
+                    }))
+                };
+                success = true;
+            }
+        } catch(e) { console.log('equran failed:', e); }
+        
+        // Fallback: AlQuran Cloud
+        if (!success) {
+            try {
+                const resp = await fetch(`https://api.alquran.cloud/v1/surah/${surahNum}`);
+                const result = await resp.json();
+                if (result.code === 200 && result.data) {
+                    data = result.data;
+                    success = true;
+                }
+            } catch(e) { console.log('alquran.cloud failed:', e); }
+        }
+        
+        if (!success || !data) {
+            throw new Error('Semua API gagal. Gunakan metode Paste Manual.');
+        }
+        
+        CURRENT_AYAT_LIST = data.ayahs ? data.ayahs.map(a => a.text) : [];
+        CURRENT_TEXT = CURRENT_AYAT_LIST.join('\n');
+        
+        document.getElementById('loadingSection').classList.remove('active');
+        
+        if (CURRENT_AYAT_LIST.length === 0) {
+            throw new Error('Tidak ada ayat yang ditemukan.');
+        }
+        
+        showAlert(`✅ Berhasil mengambil ${CURRENT_AYAT_LIST.length} ayat ${data.name || ''}!`, 'success');
+        
+        setTimeout(() => {
+            processAnalysis(CURRENT_AYAT_LIST, data.name || 'Surat ' + surahNum, surahNum, CURRENT_AYAT_LIST.length);
+        }, 500);
+        
+    } catch (error) {
+        document.getElementById('loadingSection').classList.remove('active');
+        showAlert('❌ ' + error.message, 'error');
+        console.error(error);
+    }
+}
+
+// ==================== TAB: OCR ====================
+
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        OCR_IMAGE = e.target.result;
+        const preview = document.getElementById('imagePreview');
+        preview.src = OCR_IMAGE;
+        preview.style.display = 'block';
+        document.getElementById('btnOCR').disabled = false;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function startOCR() {
+    if (!OCR_IMAGE) {
+        showAlert('⚠️ Silakan pilih gambar terlebih dahulu!', 'error');
+        return;
+    }
+    
+    document.getElementById('btnOCR').disabled = true;
+    document.getElementById('ocrProgress').classList.add('active');
+    document.getElementById('loadingSection').classList.add('active');
+    document.getElementById('loadingText').textContent = 'Membaca teks dari gambar (OCR)...';
+    hideAllSections();
+    
+    try {
+        const result = await Tesseract.recognize(
+            OCR_IMAGE, 'ara',
+            {
+                logger: m => {
+                    if (m.status === 'recognizing text') {
+                        const pct = Math.round(m.progress * 100);
+                        document.getElementById('ocrProgressBar').style.width = pct + '%';
+                        document.getElementById('ocrProgressBar').textContent = pct + '%';
+                    }
+                }
+            }
+        );
+        
+        const text = result.data.text;
+        CURRENT_TEXT = cleanOCRText(text);
+        CURRENT_AYAT_LIST = CURRENT_TEXT.split('\n').filter(l => l.trim() !== '');
+        
+        document.getElementById('ocrProgress').classList.remove('active');
+        document.getElementById('loadingSection').classList.remove('active');
+        document.getElementById('btnOCR').disabled = false;
+        
+        document.querySelectorAll('.tab')[2].click();
+        document.getElementById('ayatInput').value = CURRENT_TEXT;
+        updateCounts();
+        
+        showAlert(`✅ OCR selesai! ${CURRENT_AYAT_LIST.length} ayat terdeteksi. Klik "Analisis Detail".`, 'success');
+        
+    } catch (error) {
+        document.getElementById('ocrProgress').classList.remove('active');
+        document.getElementById('loadingSection').classList.remove('active');
+        document.getElementById('btnOCR').disabled = false;
+        showAlert('❌ OCR gagal: ' + error.message, 'error');
+    }
+}
+
+function cleanOCRText(text) {
+    return text
+        .replace(/[^\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\n\s]/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function clearOCR() {
+    document.getElementById('imageInput').value = '';
+    document.getElementById('imagePreview').style.display = 'none';
+    document.getElementById('imagePreview').src = '';
+    document.getElementById('ocrProgress').classList.remove('active');
+    document.getElementById('ocrProgressBar').style.width = '0%';
+    document.getElementById('btnOCR').disabled = true;
+    OCR_IMAGE = null;
+}
+
+// ==================== TAB: MANUAL ====================
+
+document.getElementById('ayatInput').addEventListener('input', updateCounts);
+
+function updateCounts() {
+    const text = document.getElementById('ayatInput').value;
+    const lines = text.split('\n').filter(line => line.trim() !== '');
+    
+    let hurufTotal = 0;
+    let hurufMurni = 0;
+    let harakatCount = 0;
+    
+    for (let char of text) {
+        if (isHurufArab(char)) {
+            hurufTotal++;
+            if (isHurufMurni29(getHurufMurni(char))) {
+                hurufMurni++;
+            }
+        }
+        if (isHarakatBunyi(char)) {
+            harakatCount++;
+        }
+    }
+    
+    document.getElementById('ayatCount').textContent = lines.length;
+    document.getElementById('hurufTotalCount').textContent = hurufTotal;
+    document.getElementById('hurufMurniCount').textContent = hurufMurni;
+    document.getElementById('harakatCount').textContent = harakatCount;
+}
+
+function toggleDebug() {
+    DEBUG_MODE = !DEBUG_MODE;
+    const debugSection = document.getElementById('debugSection');
+    debugSection.style.display = DEBUG_MODE ? 'block' : 'none';
+    
+    if (DEBUG_MODE && CURRENT_AYAT_LIST.length > 0) {
+        renderDebug();
+    }
+}
+
+function renderDebug() {
+    const container = document.getElementById('debugContent');
+    container.innerHTML = '';
+    
+    CURRENT_AYAT_LIST.forEach((ayat, idx) => {
+        const div = document.createElement('div');
+        div.innerHTML = `<h5>Ayat ${idx + 1}</h5>`;
+        
+        const chars = Array.from(ayat);
+        chars.forEach(char => {
+            const info = getCharInfo(char);
+            const span = document.createElement('span');
+            span.className = 'char-debug';
+            span.innerHTML = `
+                <div class="char">${char}</div>
+                <div class="code">${info.hex}</div>
+                <div class="type">${info.type}${info.nama ? ': ' + info.nama : ''}</div>
+            `;
+            div.appendChild(span);
+        });
+        
+        container.appendChild(div);
+    });
+}
+
+function analyzeCurrentText() {
+    const input = document.getElementById('ayatInput').value.trim();
+    if (!input) {
+        showAlert('⚠️ Tidak ada teks untuk dianalisis!', 'error');
+        return;
+    }
+    CURRENT_AYAT_LIST = input.split('\n').filter(line => line.trim() !== '');
+    CURRENT_TEXT = input;
+    processAnalysis(CURRENT_AYAT_LIST, 'Surat Manual', '-', CURRENT_AYAT_LIST.length);
+}
+
+// ==================== ANALISIS UTAMA ====================
+
+function processAnalysis(ayatList, namaSurat, nomorSurat, jumlahAyat) {
+    if (!ayatList || ayatList.length === 0) {
+        showAlert('⚠️ Tidak ada ayat untuk dianalisis!', 'error');
+        return;
+    }
+    
+    document.getElementById('loadingSection').classList.add('active');
+    document.getElementById('loadingText').textContent = 'Menganalisis huruf, harakat, tajwid & nahwu...';
+    hideAllSections();
+    
+    setTimeout(() => {
+        try {
+            const result = analyzeDetailed(ayatList, namaSurat, nomorSurat, jumlahAyat);
+            ANALYSIS_DATA = result;
+            
+            renderRingkasan(result);
+            renderPosisiHurufMayoritas(result); // FITUR 1: Posisi huruf mayoritas
+            renderKataBerulang(result); // FITUR 2: Kata berulang
+            renderHimpunan(result);
+            renderFrekuensi(result);
+            renderHarakat(result);
+            renderHimpunanLa(result);
+            renderTajwid(result);
+            renderTajwidBerulang(result); // FITUR 3: Kaidah tajwid berulang
+            renderNahwu(result);
+            renderNahwuBerulang(result); // FITUR 4: Kaidah nahwu berulang
+            renderDetailAyat(result);
+            renderDaftarAyat(ayatList);
+            
+            if (DEBUG_MODE) renderDebug();
+            
+            document.getElementById('loadingSection').classList.remove('active');
+            showAlert(`✅ Analisis lengkap selesai! ${result.totalHurufMurni} huruf murni dari ${ayatList.length} ayat.`, 'success');
+            
+        } catch (error) {
+            document.getElementById('loadingSection').classList.remove('active');
+            showAlert('❌ Error: ' + error.message, 'error');
+            console.error(error);
+        }
+    }, 500);
+}
+
+// ==================== FUNGSI ANALISIS DETAIL ====================
+
+function analyzeDetailed(ayatList, namaSurat, nomorSurat, jumlahAyat) {
+    // Inisialisasi counters
+    const hurufMurniFreq = {};      // ا = 15, ب = 3, dll (29 huruf)
+    const hurufVariasiFreq = {};    // ا = 10, أ = 3, إ = 2, dll
+    const posisiHuruf = { awal: {}, tengah: {}, akhir: {} };
+    const posisiHurufPerKata = {};  // NEW: posisi huruf per urutan dalam kata (1, 2, 3, dst)
+    const harakatFreq = {};
+    const tandaWaqfFreq = {};
+    const himpunanLa = { 'لَ':0, 'لِ':0, 'لُ':0, 'لْ':0, 'لً':0, 'لٍ':0, 'لٌ':0, 'ل':0 };
+    const tajwidRules = [];
+    const tajwidRuleCounts = {};    // NEW: hitungan kaidah tajwid berulang
+    const nahwuAnalysis = [];
+    const nahwuRuleCounts = {};     // NEW: hitungan kaidah nahwu berulang
+    const kataFreq = {};            // NEW: frekuensi kata berulang
+    
+    let totalHurufArab = 0;      // Semua huruf Arab termasuk variasi
+    let totalHurufMurni = 0;     // 29 huruf murni saja
+    let totalHarakat = 0;
+    let totalTandaWaqf = 0;
+    let totalSukun = 0;
+    let totalTanwin = 0;
+    let totalTasydid = 0;
+    
+    const ayatAnalysis = [];
+    
+    ayatList.forEach((ayat, ayatIndex) => {
+        const cleanAyat = ayat.trim();
+        const ayatHurufMurni = {};
+        const ayatHurufVariasi = {};
+        const ayatHarakat = {};
+        let ayatTotalHurufMurni = 0;
+        let ayatTotalHurufArab = 0;
+        let ayatTotalHarakat = 0;
+        
+        // Split into words for position analysis
+        const words = cleanAyat.split(/\s+/).filter(w => w.length > 0);
+        
+        // NEW: Hitung frekuensi kata
+        words.forEach(word => {
+            const murniWord = Array.from(word).map(c => getHurufMurni(c)).filter(c => HURUF_MURNI[c]).join('');
+            if (murniWord.length >= 2) {
+                kataFreq[murniWord] = (kataFreq[murniWord] || 0) + 1;
+            }
+        });
+        
+        words.forEach((word, wordIdx) => {
+            const chars = Array.from(word);
+            const wordHurufIndices = [];
+            
+            // First pass: identify huruf Arab positions
+            chars.forEach((char, idx) => {
+                if (isHurufArab(char)) {
+                    const murni = getHurufMurni(char);
+                    wordHurufIndices.push({ char, murni, idx });
+                }
+            });
+            
+            // NEW: Analisis posisi huruf per urutan dalam kata (1, 2, 3, dst)
+            wordHurufIndices.forEach((h, hi) => {
+                const posisi = hi + 1; // posisi ke-1, ke-2, dst
+                if (!posisiHurufPerKata[posisi]) {
+                    posisiHurufPerKata[posisi] = {};
+                }
+                posisiHurufPerKata[posisi][h.murni] = (posisiHurufPerKata[posisi][h.murni] || 0) + 1;
+            });
+            
+            // Analyze huruf
+            wordHurufIndices.forEach((h, hi) => {
+                const { char, murni } = h;
+                
+                // Frequency huruf murni (29 huruf)
+                if (isHurufMurni29(murni)) {
+                    hurufMurniFreq[murni] = (hurufMurniFreq[murni] || 0) + 1;
+                    ayatHurufMurni[murni] = (ayatHurufMurni[murni] || 0) + 1;
+                    totalHurufMurni++;
+                    ayatTotalHurufMurni++;
+                }
+                
+                // Frequency variasi huruf
+                hurufVariasiFreq[char] = (hurufVariasiFreq[char] || 0) + 1;
+                ayatHurufVariasi[char] = (ayatHurufVariasi[char] || 0) + 1;
+                totalHurufArab++;
+                ayatTotalHurufArab++;
+                
+                // Position: awal, tengah, akhir kata
+                if (hi === 0) {
+                    posisiHuruf.awal[murni] = (posisiHuruf.awal[murni] || 0) + 1;
+                } else if (hi === wordHurufIndices.length - 1) {
+                    posisiHuruf.akhir[murni] = (posisiHuruf.akhir[murni] || 0) + 1;
+                } else {
+                    posisiHuruf.tengah[murni] = (posisiHuruf.tengah[murni] || 0) + 1;
+                }
+                
+                // Check for Lam + harakat combination
+                if (murni === 'ل') {
+                    const nextChar = chars[h.idx + 1];
+                    if (nextChar && HARAKAT_INFO[nextChar]) {
+                        const combo = 'ل' + nextChar;
+                        if (himpunanLa[combo] !== undefined) {
+                            himpunanLa[combo]++;
+                        }
+                    } else if (!nextChar || !HARAKAT_INFO[nextChar]) {
+                        himpunanLa['ل']++;
+                    }
+                }
+            });
+            
+            // Analyze harakat and tanda in word
+            chars.forEach((char, idx) => {
+                if (isHarakatBunyi(char)) {
+                    harakatFreq[char] = (harakatFreq[char] || 0) + 1;
+                    ayatHarakat[char] = (ayatHarakat[char] || 0) + 1;
+                    totalHarakat++;
+                    ayatTotalHarakat++;
+                    
+                    if (char === 'ْ') totalSukun++;
+                    if (['ً','ٍ','ٌ'].includes(char)) totalTanwin++;
+                    if (char === 'ّ') totalTasydid++;
+                }
+                
+                if (isTandaWaqf(char)) {
+                    tandaWaqfFreq[char] = (tandaWaqfFreq[char] || 0) + 1;
+                    totalTandaWaqf++;
+                    
+                    tajwidRules.push({
+                        tanda: char,
+                        nama: TANDA_WAQF[char].nama,
+                        arti: TANDA_WAQF[char].arti,
+                        kata: word,
+                        ayat: ayatIndex + 1,
+                        posisi: `kata ke-${wordIdx + 1}`,
+                        jenis: 'waqf'
+                    });
+                    
+                    // NEW: Hitung kaidah tajwid berulang
+                    const ruleKey = TANDA_WAQF[char].nama;
+                    tajwidRuleCounts[ruleKey] = (tajwidRuleCounts[ruleKey] || 0) + 1;
+                }
+            });
+            
+            // Simple nahwu detection
+            detectNahwu(word, chars, ayatIndex + 1, wordIdx + 1, nahwuAnalysis, nahwuRuleCounts);
+            
+            // NEW: Deteksi kaidah tajwid lainnya (idgham, ikhfa, iqlab, qalqalah, madd)
+            detectTajwidRules(word, chars, ayatIndex + 1, wordIdx + 1, tajwidRules, tajwidRuleCounts);
+        });
+        
+        ayatAnalysis.push({
+            nomor: ayatIndex + 1,
+            teks: cleanAyat,
+            jumlahHurufMurni: ayatTotalHurufMurni,
+            jumlahHurufArab: ayatTotalHurufArab,
+            jumlahHarakat: ayatTotalHarakat,
+            hurufMurni: ayatHurufMurni,
+            hurufVariasi: ayatHurufVariasi,
+            harakat: ayatHarakat
+        });
+    });
+    
+    // Sort frequencies
+    const sortedHurufMurni = Object.entries(hurufMurniFreq).sort((a,b) => b[1]-a[1]);
+    const sortedHurufVariasi = Object.entries(hurufVariasiFreq).sort((a,b) => b[1]-a[1]);
+    const sortedHarakat = Object.entries(harakatFreq).sort((a,b) => b[1]-a[1]);
+    const sortedKata = Object.entries(kataFreq).filter(([k,v]) => v > 1).sort((a,b) => b[1]-a[1]); // NEW: kata berulang
+    const sortedTajwidRules = Object.entries(tajwidRuleCounts).sort((a,b) => b[1]-a[1]); // NEW
+    const sortedNahwuRules = Object.entries(nahwuRuleCounts).sort((a,b) => b[1]-a[1]); // NEW
+    
+    return {
+        namaSurat, nomorSurat, jumlahAyat, totalAyat: ayatList.length,
+        totalHurufArab, totalHurufMurni, totalHarakat, totalTandaWaqf,
+        totalSukun, totalTanwin, totalTasydid,
+        hurufMurniFreq, hurufVariasiFreq, sortedHurufMurni, sortedHurufVariasi,
+        posisiHuruf, posisiHurufPerKata, // NEW
+        harakatFreq, sortedHarakat,
+        tandaWaqfFreq, himpunanLa, tajwidRules,
+        tajwidRuleCounts, sortedTajwidRules, // NEW
+        nahwuAnalysis, nahwuRuleCounts, sortedNahwuRules, // NEW
+        kataFreq, sortedKata, // NEW
+        ayatAnalysis, ayatList
+    };
+}
+
+// ==================== DETEKSI NAHWU ====================
+
+function detectNahwu(word, chars, ayatNum, wordNum, results, ruleCounts) {
+    const murniWord = chars.map(c => getHurufMurni(c)).filter(c => HURUF_MURNI[c]).join('');
+    
+    // Deteksi ism (kata benda) - awalan Al-
+    if (murniWord.startsWith('ال')) {
+        results.push({
+            kata: word, murni: murniWord, ayat: ayatNum, wordNum,
+            jenis: 'ism', tag: 'ma\'rifat (ال)', klasifikasi: 'isim'
+        });
+        ruleCounts['Ism Ma\'rifat (ال)'] = (ruleCounts['Ism Ma\'rifat (ال)'] || 0) + 1;
+        return;
+    }
+    
+    // Deteksi fi'il madhi (kata kerja lampau)
+    const fiilPatterns = ['فعل', 'قال', 'كان', 'جعل', 'علم', 'أنزل', 'أرسل', 'خلق', 'رزق', 'هدى'];
+    if (fiilPatterns.some(p => murniWord.includes(p))) {
+        results.push({
+            kata: word, murni: murniWord, ayat: ayatNum, wordNum,
+            jenis: 'fi\'il', tag: 'fi\'il madhi', klasifikasi: 'kata kerja'
+        });
+        ruleCounts['Fi\'il Madhi'] = (ruleCounts['Fi\'il Madhi'] || 0) + 1;
+        return;
+    }
+    
+    // Deteksi fi'il mudhari'
+    if (murniWord.startsWith('ي') || murniWord.startsWith('ت') || murniWord.startsWith('ن') || murniWord.startsWith('أ')) {
+        if (murniWord.length > 3 && !murniWord.startsWith('ال')) {
+            results.push({
+                kata: word, murni: murniWord, ayat: ayatNum, wordNum,
+                jenis: 'fi\'il', tag: 'fi\'il mudhari\' (tentatif)', klasifikasi: 'kata kerja'
+            });
+            ruleCounts['Fi\'il Mudhari\''] = (ruleCounts['Fi\'il Mudhari\''] || 0) + 1;
+            return;
+        }
+    }
+    
+    // Deteksi huruf
+    const hurufJarr = ['في','من','إلى','على','عن','حتى','مذ',' rub','مذ','كي','لعل'];
+    const hurufNashab = ['أن','لن','كي','إذن','لكن','حتى','لعل','ليت'];
+    const hurufAtf = ['و','ف','ثم','أو','أم','بل','لا','لكن'];
+    const hurufIstifham = ['هل','من','ما','متى','أين','كيف','لماذا'];
+    
+    if (hurufJarr.some(h => murniWord === h || murniWord.startsWith(h))) {
+        results.push({ kata: word, murni: murniWord, ayat: ayatNum, wordNum,
+            jenis: 'harf', tag: 'huruf jarr', klasifikasi: 'huruf' });
+        ruleCounts['Huruf Jarr'] = (ruleCounts['Huruf Jarr'] || 0) + 1;
+        return;
+    }
+    if (hurufNashab.some(h => murniWord === h)) {
+        results.push({ kata: word, murni: murniWord, ayat: ayatNum, wordNum,
+            jenis: 'harf', tag: 'huruf nashab', klasifikasi: 'huruf' });
+        ruleCounts['Huruf Nashab'] = (ruleCounts['Huruf Nashab'] || 0) + 1;
+        return;
+    }
+    if (hurufAtf.some(h => murniWord === h)) {
+        results.push({ kata: word, murni: murniWord, ayat: ayatNum, wordNum,
+            jenis: 'harf', tag: 'huruf \'athaf', klasifikasi: 'huruf' });
+        ruleCounts['Huruf \'Athaf'] = (ruleCounts['Huruf \'Athaf'] || 0) + 1;
+        return;
+    }
+    if (hurufIstifham.some(h => murniWord === h || murniWord.startsWith(h))) {
+        results.push({ kata: word, murni: murniWord, ayat: ayatNum, wordNum,
+            jenis: 'harf', tag: 'huruf istifham', klasifikasi: 'huruf' });
+        ruleCounts['Huruf Istifham'] = (ruleCounts['Huruf Istifham'] || 0) + 1;
+        return;
+    }
+    
+    // Default: isim
+    results.push({
+        kata: word, murni: murniWord, ayat: ayatNum, wordNum,
+        jenis: 'ism', tag: 'isim nakirah (tentatif)', klasifikasi: 'kata benda'
+    });
+    ruleCounts['Isim Nakirah'] = (ruleCounts['Isim Nakirah'] || 0) + 1;
+}
+
+// ==================== DETEKSI TAJWID RULES ====================
+
+function detectTajwidRules(word, chars, ayatNum, wordNum, results, ruleCounts) {
+    const murniChars = chars.map(c => getHurufMurni(c));
+    
+    // Idgham (Nun mati/tanwin + huruf idgham: ي ن م و)
+    const hurufIdgham = ['ي','ن','م','و'];
+    for (let i = 0; i < chars.length - 2; i++) {
+        const murni = murniChars[i];
+        const next = chars[i+1];
+        const afterNext = murniChars[i+2];
+        
+        if (murni === 'ن' && next === 'ْ' && hurufIdgham.includes(afterNext)) {
+            const jenis = afterNext === 'ن' || afterNext === 'م' ? 'Idgham Bighunnah' : 'Idgham Bilaghunnah';
+            results.push({
+                kata: word, huruf: chars[i+2], jenis, ayat: ayatNum, posisi: `kata ke-${wordNum}`,
+                jenisRule: 'idgham'
+            });
+            ruleCounts[jenis] = (ruleCounts[jenis] || 0) + 1;
+        }
+        if (['ً','ٍ','ٌ'].includes(chars[i]) && hurufIdgham.includes(afterNext)) {
+            const jenis = afterNext === 'ن' || afterNext === 'م' ? 'Idgham Bighunnah' : 'Idgham Bilaghunnah';
+            results.push({
+                kata: word, huruf: chars[i+2], jenis, ayat: ayatNum, posisi: `kata ke-${wordNum}`,
+                jenisRule: 'idgham'
+            });
+            ruleCounts[jenis] = (ruleCounts[jenis] || 0) + 1;
+        }
+    }
+    
+    // Ikhfa
+    const hurufIkhfa = ['ت','ث','ج','د','ذ','ز','س','ش','ص','ض','ط','ظ','ف','ق','ك'];
+    for (let i = 0; i < chars.length - 2; i++) {
+        const murni = murniChars[i];
+        const next = chars[i+1];
+        const afterNext = murniChars[i+2];
+        if ((murni === 'ن' && next === 'ْ') || ['ً','ٍ','ٌ'].includes(chars[i])) {
+            if (hurufIkhfa.includes(afterNext)) {
+                results.push({
+                    kata: word, huruf: chars[i+2], jenis: 'Ikhfa\' Haqiqi', ayat: ayatNum, posisi: `kata ke-${wordNum}`,
+                    jenisRule: 'ikhfa'
+                });
+                ruleCounts['Ikhfa\' Haqiqi'] = (ruleCounts['Ikhfa\' Haqiqi'] || 0) + 1;
+            }
+        }
+    }
+    
+    // Iqlab
+    for (let i = 0; i < chars.length - 2; i++) {
+        const murni = murniChars[i];
+        const next = chars[i+1];
+        const afterNext = murniChars[i+2];
+        if (murni === 'ن' && next === 'ْ' && afterNext === 'ب') {
+            results.push({
+                kata: word, jenis: 'Iqlab (berubah jadi mim)', ayat: ayatNum, posisi: `kata ke-${wordNum}`,
+                jenisRule: 'iqlab'
+            });
+            ruleCounts['Iqlab'] = (ruleCounts['Iqlab'] || 0) + 1;
+        }
+    }
+    
+    // Qalqalah
+    const qalqalahHuruf = ['ق','ط','ب','ج','د'];
+    for (let i = 0; i < chars.length; i++) {
+        if (qalqalahHuruf.includes(murniChars[i])) {
+            const nextChar = chars[i + 1];
+            if (nextChar === 'ْ' || (!nextChar && i === chars.length - 1)) {
+                const jenis = nextChar === 'ْ' ? 'Qalqalah Sugra' : 'Qalqalah Kubra';
+                results.push({
+                    kata: word, huruf: chars[i], jenis, ayat: ayatNum, posisi: `kata ke-${wordNum}`,
+                    jenisRule: 'qalqalah'
+                });
+                ruleCounts[jenis] = (ruleCounts[jenis] || 0) + 1;
+            }
+        }
+    }
+    
+    // Madd
+    for (let i = 0; i < chars.length - 1; i++) {
+        const murni = murniChars[i];
+        const prev = chars[i-1];
+        if (murni === 'ا' && prev === 'َ') {
+            results.push({
+                kata: word, jenis: 'Madd Asli (Alif)', panjang: '2 harakat', ayat: ayatNum, posisi: `kata ke-${wordNum}`,
+                jenisRule: 'madd'
+            });
+            ruleCounts['Madd Asli'] = (ruleCounts['Madd Asli'] || 0) + 1;
+        }
+        if (murni === 'و' && prev === 'ُ') {
+            results.push({
+                kata: word, jenis: 'Madd Asli (Waw)', panjang: '2 harakat', ayat: ayatNum, posisi: `kata ke-${wordNum}`,
+                jenisRule: 'madd'
+            });
+            ruleCounts['Madd Asli'] = (ruleCounts['Madd Asli'] || 0) + 1;
+        }
+        if (murni === 'ي' && prev === 'ِ') {
+            results.push({
+                kata: word, jenis: 'Madd Asli (Ya)', panjang: '2 harakat', ayat: ayatNum, posisi: `kata ke-${wordNum}`,
+                jenisRule: 'madd'
+            });
+            ruleCounts['Madd Asli'] = (ruleCounts['Madd Asli'] || 0) + 1;
+        }
+        if (chars[i] === 'ٓ' || chars[i] === 'ٰ') {
+            results.push({
+                kata: word, jenis: 'Madd Lazim/Mutsaqqal', panjang: '4-6 harakat', ayat: ayatNum, posisi: `kata ke-${wordNum}`,
+                jenisRule: 'madd'
+            });
+            ruleCounts['Madd Lazim'] = (ruleCounts['Madd Lazim'] || 0) + 1;
+        }
+    }
+}
+
+// ==================== RENDER FUNCTIONS ====================
+
+// FITUR 1: RENDER POSISI HURUF MAYORITAS
+function renderPosisiHurufMayoritas(data) {
+    const container = document.getElementById('posisiHurufGrid');
+    container.innerHTML = '';
+    
+    const maxPosisi = Math.max(...Object.keys(data.posisiHurufPerKata).map(Number));
+    const posisiNama = ['Pertama', 'Kedua', 'Ketiga', 'Keempat', 'Kelima', 'Keenam', 'Ketujuh', 'Kedelapan'];
+    
+    for (let pos = 1; pos <= Math.min(maxPosisi, 8); pos++) {
+        const posData = data.posisiHurufPerKata[pos] || {};
+        const sorted = Object.entries(posData).sort((a,b) => b[1]-a[1]);
+        const total = sorted.reduce((sum, [,v]) => sum + v, 0);
+        
+        let html = `<div class="detail-card pos-${pos}"><h4>📍 Huruf ke-${pos} (${posisiNama[pos-1]}) dalam Kata</h4>`;
+        html += `<div style="margin-bottom:10px; color:#666; font-size:0.85em;">Total: ${total} huruf</div>`;
+        
+        sorted.slice(0, 10).forEach(([huruf, jumlah], idx) => {
+            const persen = total > 0 ? ((jumlah / total) * 100).toFixed(1) : 0;
+            const barWidth = sorted[0] ? (jumlah / sorted[0][1] * 100).toFixed(1) : 0;
+            html += `
+                <div class="detail-row">
+                    <span class="label">
+                        <span class="arabic" style="font-size:1.2em;">${huruf}</span> 
+                        ${HURUF_MURNI[huruf] || ''} ${idx === 0 ? '👑' : ''}
+                    </span>
+                    <span class="value">
+                        <strong>${jumlah}</strong> (${persen}%)
+                        <div class="bar-chart" style="margin-top:3px;">
+                            <div class="bar" style="width:${barWidth}%; height:8px; opacity:0.7;"></div>
+                        </div>
+                    </span>
+                </div>
+            `;
+        });
+        
+        if (sorted.length > 10) {
+            html += `<div style="text-align:center; color:#999; font-size:0.8em; margin-top:5px;">... dan ${sorted.length - 10} huruf lainnya</div>`;
+        }
+        
+        html += '</div>';
+        container.innerHTML += html;
+    }
+    
+    document.getElementById('posisiHurufSection').classList.add('active');
+}
+
+// FITUR 2: RENDER KATA BERULANG
+function renderKataBerulang(data) {
+    const container = document.getElementById('kataBerulangContent');
+    container.innerHTML = '';
+    
+    if (data.sortedKata.length === 0) {
+        container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">Tidak ada kata berulang yang ditemukan.</p>';
+        document.getElementById('kataBerulangSection').classList.add('active');
+        return;
+    }
+    
+    // Statistik ringkasan
+    const totalKataBerulang = data.sortedKata.reduce((sum, [,v]) => sum + v, 0);
+    const uniqueKata = data.sortedKata.length;
+    
+    let html = `
+        <div class="stats-grid" style="margin-bottom:15px;">
+            <div class="stat-card"><div class="stat-value">${uniqueKata}</div><div class="stat-label">Jenis Kata Berulang</div></div>
+            <div class="stat-card"><div class="stat-value">${totalKataBerulang}</div><div class="stat-label">Total Kemunculan</div></div>
+        </div>
+    `;
+    
+    // Tabel kata berulang
+    html += '<div style="overflow-x:auto;"><table style="font-size:0.9em;"><thead><tr><th>No</th><th>Kata</th><th>Jumlah</th><th>Persentase</th><th>Visual</th></tr></thead><tbody>';
+    
+    const maxCount = data.sortedKata[0] ? data.sortedKata[0][1] : 1;
+    
+    data.sortedKata.slice(0, 50).forEach(([kata, count], index) => {
+        const persen = ((count / totalKataBerulang) * 100).toFixed(2);
+        const barWidth = (count / maxCount * 100).toFixed(1);
+        html += `
+            <tr>
+                <td>${index + 1}</td>
+                <td class="arabic" style="font-size:1.3em;">${kata}</td>
+                <td><strong>${count}x</strong></td>
+                <td>${persen}%</td>
+                <td><div class="bar-chart"><div class="bar" style="width:${barWidth}%"></div><span class="bar-value">${count}</span></div></td>
+            </tr>
+        `;
+    });
+    
+    if (data.sortedKata.length > 50) {
+        html += `<tr><td colspan="5" style="text-align:center; color:#999;">... dan ${data.sortedKata.length - 50} kata lainnya</td></tr>`;
+    }
+    
+    html += '</tbody></table></div>';
+    
+    // Detail card per kata
+    html += '<h4 style="margin:20px 0 10px; color:#1a5276;">📋 Detail Kata Berulang</h4>';
+    data.sortedKata.slice(0, 20).forEach(([kata, count]) => {
+        // Cari lokasi kemunculan
+        const locations = [];
+        data.ayatList.forEach((ayat, ayatIdx) => {
+            const words = ayat.split(/\s+/).filter(w => w);
+            words.forEach((word, wordIdx) => {
+                const murniWord = Array.from(word).map(c => getHurufMurni(c)).filter(c => HURUF_MURNI[c]).join('');
+                if (murniWord === kata) {
+                    locations.push(`Ayat ${ayatIdx + 1}`);
+                }
+            });
+        });
+        
+        const uniqueLocations = [...new Set(locations)].slice(0, 5);
+        
+        html += `
+            <div class="repeat-card">
+                <span class="word-arabic">${kata}</span>
+                <span class="count-badge">${count}x</span>
+                <div class="locations">📍 Muncul di: ${uniqueLocations.join(', ')}${locations.length > 5 ? ' ...' : ''}</div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    document.getElementById('kataBerulangSection').classList.add('active');
+}
+
+function renderRingkasan(data) {
+    const container = document.getElementById('ringkasanStats');
+    container.innerHTML = `
+        <div class="stat-card"><div class="stat-value">${data.namaSurat}</div><div class="stat-label">Nama Surat</div></div>
+        <div class="stat-card"><div class="stat-value">${data.nomorSurat}</div><div class="stat-label">Nomor</div></div>
+        <div class="stat-card"><div class="stat-value">${data.totalAyat}</div><div class="stat-label">Ayat</div></div>
+        <div class="stat-card"><div class="stat-value">${data.totalHurufMurni}</div><div class="stat-label">Huruf Murni (29)</div></div>
+        <div class="stat-card"><div class="stat-value">${data.totalHurufArab}</div><div class="stat-label">Huruf Arab Total</div></div>
+        <div class="stat-card"><div class="stat-value">${data.totalHarakat}</div><div class="stat-label">Harakat</div></div>
+        <div class="stat-card"><div class="stat-value">${data.totalSukun}</div><div class="stat-label">Sukun</div></div>
+        <div class="stat-card"><div class="stat-value">${data.totalTanwin}</div><div class="stat-label">Tanwin</div></div>
+    `;
+    document.getElementById('ringkasanSection').classList.add('active');
+}
+
+function renderHimpunan(data) {
+    const container = document.getElementById('himpunanGrid');
+    container.innerHTML = '';
+    
+    // Card 1: Huruf Murni (29 huruf)
+    let html1 = '<div class="detail-card"><h4>🔤 29 Huruf Murni</h4>';
+    const sortedMurni = Object.entries(HURUF_MURNI).map(([h, name]) => ({
+        huruf: h, nama: name, count: data.hurufMurniFreq[h] || 0
+    })).sort((a, b) => b.count - a.count);
+    
+    sortedMurni.forEach(({huruf, nama, count}) => {
+        html1 += `<div class="detail-row"><span class="label arabic">${huruf}</span><span class="value">${nama}: ${count}</span></div>`;
+    });
+    html1 += '</div>';
+    
+    // Card 2: Variasi Huruf
+    let html2 = '<div class="detail-card"><h4>📝 Variasi Huruf Terdeteksi</h4>';
+    data.sortedHurufVariasi.forEach(([v, count]) => {
+        const murni = getHurufMurni(v);
+        const nama = HURUF_MURNI[murni] || '?';
+        html2 += `<div class="detail-row"><span class="label arabic">${v}</span><span class="value">${nama}: ${count}</span></div>`;
+    });
+    html2 += '</div>';
+    
+    // Card 3: Huruf + Sukun
+    let html3 = '<div class="detail-card"><h4>🔇 Huruf + Sukun</h4>';
+    const sukunHuruf = {};
+    data.ayatList.forEach(ayat => {
+        const chars = Array.from(ayat);
+        for (let i = 0; i < chars.length - 1; i++) {
+            if (isHurufArab(chars[i]) && chars[i+1] === 'ْ') {
+                const murni = getHurufMurni(chars[i]);
+                const key = chars[i] + 'ْ';
+                sukunHuruf[key] = (sukunHuruf[key] || 0) + 1;
+            }
+        }
+    });
+    Object.entries(sukunHuruf).sort((a,b) => b[1]-a[1]).forEach(([k, v]) => {
+        html3 += `<div class="detail-row"><span class="label arabic">${k}</span><span class="value">${v}x</span></div>`;
+    });
+    html3 += '</div>';
+    
+    // Card 4: Huruf + Tasydid
+    let html4 = '<div class="detail-card"><h4>🔁 Huruf + Tasydid</h4>';
+    const tasydidHuruf = {};
+    data.ayatList.forEach(ayat => {
+        const chars = Array.from(ayat);
+        for (let i = 0; i < chars.length - 1; i++) {
+            if (isHurufArab(chars[i]) && chars[i+1] === 'ّ') {
+                const key = chars[i] + 'ّ';
+                tasydidHuruf[key] = (tasydidHuruf[key] || 0) + 1;
+            }
+        }
+    });
+    Object.entries(tasydidHuruf).sort((a,b) => b[1]-a[1]).forEach(([k, v]) => {
+        html4 += `<div class="detail-row"><span class="label arabic">${k}</span><span class="value">${v}x</span></div>`;
+    });
+    html4 += '</div>';
+    
+    container.innerHTML = html1 + html2 + html3 + html4;
+    document.getElementById('himpunanSection').classList.add('active');
+}
+
+function renderFrekuensi(data) {
+    const tbody = document.querySelector('#frekuensiTable tbody');
+    tbody.innerHTML = '';
+    const maxVal = data.sortedHurufMurni[0] ? data.sortedHurufMurni[0][1] : 1;
+    
+    data.sortedHurufMurni.forEach(([huruf, jumlah], index) => {
+        const persen = ((jumlah / data.totalHurufMurni) * 100).toFixed(2);
+        const barWidth = (jumlah / maxVal * 100).toFixed(1);
+        const awal = data.posisiHuruf.awal[huruf] || 0;
+        const tengah = data.posisiHuruf.tengah[huruf] || 0;
+        const akhir = data.posisiHuruf.akhir[huruf] || 0;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td class="arabic">${huruf}</td>
+            <td><strong>${jumlah}</strong></td>
+            <td>${persen}%</td>
+            <td>${awal}</td>
+            <td>${tengah}</td>
+            <td>${akhir}</td>
+            <td><div class="bar-chart"><div class="bar" style="width:${barWidth}%"></div><span class="bar-value">${jumlah}</span></div></td>
+        `;
+        tbody.appendChild(row);
+    });
+    document.getElementById('frekuensiSection').classList.add('active');
+}
+
+function renderHarakat(data) {
+    const container = document.getElementById('harakatGrid');
+    
+    // Card 1: Harakat dasar
+    let html1 = '<div class="detail-card"><h4>🎵 Harakat Dasar (a, i, u)</h4>';
+    const harakatDasar = {'َ':'Fathah (a)','ِ':'Kasrah (i)','ُ':'Dammah (u)'};
+    Object.entries(harakatDasar).forEach(([h, name]) => {
+        const count = data.harakatFreq[h] || 0;
+        html1 += `<div class="detail-row"><span class="label arabic">${h}</span><span class="value">${name}: ${count}</span></div>`;
+    });
+    html1 += '</div>';
+    
+    // Card 2: Sukun & Tanwin
+    let html2 = '<div class="detail-card"><h4>✨ Sukun & Tanwin</h4>';
+    html2 += `<div class="detail-row"><span class="label arabic">ْ</span><span class="value">Sukun (mati): ${data.harakatFreq['ْ'] || 0}</span></div>`;
+    const tanwin = {'ً':'Fathatan (an)','ٍ':'Kasratan (in)','ٌ':'Dammatan (un)'};
+    Object.entries(tanwin).forEach(([h, name]) => {
+        const count = data.harakatFreq[h] || 0;
+        html2 += `<div class="detail-row"><span class="label arabic">${h}</span><span class="value">${name}: ${count}</span></div>`;
+    });
+    html2 += '</div>';
+    
+    // Card 3: Tasydid & Madd
+    let html3 = '<div class="detail-card"><h4>🔄 Tasydid & Madd</h4>';
+    html3 += `<div class="detail-row"><span class="label arabic">ّ</span><span class="value">Tasydid (ganda): ${data.harakatFreq['ّ'] || 0}</span></div>`;
+    html3 += `<div class="detail-row"><span class="label arabic">ٓ</span><span class="value">Maddah (panjang): ${data.harakatFreq['ٓ'] || 0}</span></div>`;
+    html3 += `<div class="detail-row"><span class="label arabic">ٰ</span><span class="value">Alif Khanjariyah: ${data.harakatFreq['ٰ'] || 0}</span></div>`;
+    html3 += '</div>';
+    
+    // Card 4: Tanpa harakat (sukun implisit)
+    let html4 = '<div class="detail-card"><h4>🔇 Huruf Tanpa Harakat Eksplisit</h4>';
+    let tanpaHarakat = 0;
+    data.ayatList.forEach(ayat => {
+        const chars = Array.from(ayat);
+        for (let i = 0; i < chars.length; i++) {
+            if (isHurufArab(chars[i])) {
+                const next = chars[i+1];
+                if (!next || (!isHarakatBunyi(next) && next !== 'ّ')) {
+                    tanpaHarakat++;
+                }
+            }
+        }
+    });
+    html4 += `<div class="detail-row"><span class="label">Total</span><span class="value">${tanpaHarakat} huruf</span></div>`;
+    html4 += '<p style="color:#999; font-size:0.8em; margin-top:5px;">*Huruf yang tidak diikuti harakat eksplisit</p>';
+    html4 += '</div>';
+    
+    container.innerHTML = html1 + html2 + html3 + html4;
+    document.getElementById('harakatSection').classList.add('active');
+}
+
+function renderHimpunanLa(data) {
+    const container = document.getElementById('himpunanLaGrid');
+    
+    // Card 1: Lam + harakat
+    let html = '<div class="detail-card"><h4>🔗 Lam + Harakat Eksplisit</h4>';
+    Object.entries(data.himpunanLa).forEach(([combo, count]) => {
+        const label = combo === 'ل' ? 'Lam tanpa harakat' : `Lam + ${combo.charAt(1)}`;
+        html += `<div class="detail-row"><span class="label arabic">${combo}</span><span class="value">${label}: ${count}</span></div>`;
+    });
+    html += '</div>';
+    
+    // Card 2: Ba, Ta, dll + harakat (sample)
+    html += '<div class="detail-card"><h4>🔤 Sample: Ba, Ta, Sa + Harakat</h4>';
+    const sampleCombos = {};
+    data.ayatList.forEach(ayat => {
+        const chars = Array.from(ayat);
+        for (let i = 0; i < chars.length - 1; i++) {
+            const murni = getHurufMurni(chars[i]);
+            if (['ب','ت','ث','ن','م','ك','س','ف'].includes(murni) && HARAKAT_INFO[chars[i+1]]) {
+                const combo = chars[i] + chars[i+1];
+                sampleCombos[combo] = (sampleCombos[combo] || 0) + 1;
+            }
+        }
+    });
+    Object.entries(sampleCombos).sort((a,b) => b[1]-a[1]).slice(0, 15).forEach(([combo, count]) => {
+        const huruf = getHurufMurni(combo.charAt(0));
+        const harakat = HARAKAT_INFO[combo.charAt(1)]?.bunyi || '';
+        html += `<div class="detail-row"><span class="label arabic">${combo}</span><span class="value">${huruf}${harakat}: ${count}</span></div>`;
+    });
+    html += '</div>';
+    
+    // Card 3: Kombinasi spesial
+    html += '<div class="detail-card"><h4>✨ Kombinasi Spesial</h4>';
+    const specialCombos = {};
+    data.ayatList.forEach(ayat => {
+        const chars = Array.from(ayat);
+        for (let i = 0; i < chars.length - 1; i++) {
+            const m1 = getHurufMurni(chars[i]);
+            const m2 = getHurufMurni(chars[i+1]);
+            if (m1 === 'ا' && m2 === 'ل') specialCombos['ال'] = (specialCombos['ال'] || 0) + 1;
+            if (m1 === 'ل' && m2 === 'ل') specialCombos['لل'] = (specialCombos['لل'] || 0) + 1;
+            if (m1 === 'م' && m2 === 'ا') specialCombos['ما'] = (specialCombos['ما'] || 0) + 1;
+            if (m1 === 'ل' && m2 === 'ه') specialCombos['له'] = (specialCombos['له'] || 0) + 1;
+        }
+    });
+    const artiCombo = {'ال':'Al- (ma\'rifat)','لل':'Lil- (untuk al-)','ما':'Ma (apa/tidak)','له':'Lahu (untuk-Nya)'};
+    Object.entries(specialCombos).sort((a,b) => b[1]-a[1]).forEach(([combo, count]) => {
+        html += `<div class="detail-row"><span class="label arabic">${combo}</span><span class="value">${artiCombo[combo] || ''}: ${count}</span></div>`;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+    document.getElementById('himpunanLaSection').classList.add('active');
+}
+
+function renderTajwid(data) {
+    const container = document.getElementById('tajwidContent');
+    container.innerHTML = '';
+    
+    // Section 1: Tanda Waqf
+    let html = '<div class="sub-section"><h4>🛑 Tanda Waqf</h4>';
+    const waqfData = data.tajwidRules.filter(r => r.jenis === 'waqf');
+    if (waqfData.length === 0) {
+        html += '<p style="color:#999;">Tidak ada tanda waqf dalam teks ini.</p>';
+    } else {
+        waqfData.forEach(rule => {
+            html += `
+                <div class="tajwid-detail">
+                    <div class="word arabic">${rule.kata}</div>
+                    <div>
+                        <span class="rule">${rule.nama}</span>
+                        <span class="rule" style="background:#fff3e0; color:#ef6c00;">${rule.arti}</span>
+                    </div>
+                    <div class="location">📍 Ayat ${rule.ayat}, ${rule.posisi}</div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+    
+    // Section 2: Idgham
+    html += '<div class="sub-section"><h4>🔗 Idgham (Nun Mati/Tanwin + Huruf Idgham: ي ن م و)</h4>';
+    const idghamRules = data.tajwidRules.filter(r => r.jenisRule === 'idgham');
+    if (idghamRules.length === 0) {
+        html += '<p style="color:#999;">Tidak ditemukan idgham. Perlu pemeriksaan manual.</p>';
+    } else {
+        idghamRules.forEach(rule => {
+            html += `
+                <div class="tajwid-detail">
+                    <div class="word arabic">${rule.kata}</div>
+                    <div>
+                        <span class="rule">${rule.jenis}</span>
+                        <span class="rule" style="background:#e3f2fd; color:#1565c0;">huruf: <span class="arabic">${rule.huruf}</span></span>
+                    </div>
+                    <div class="location">📍 Ayat ${rule.ayat}, ${rule.posisi}</div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+    
+    // Section 3: Ikhfa
+    html += '<div class="sub-section"><h4>😶 Ikhfa\' (Nun Mati/Tanwin + Huruf Ikhfa: ت ث ج د ذ ز س ش ص ض ط ظ ف ق ك)</h4>';
+    const ikhfaRules = data.tajwidRules.filter(r => r.jenisRule === 'ikhfa');
+    if (ikhfaRules.length === 0) {
+        html += '<p style="color:#999;">Tidak ditemukan ikhfa. Perlu pemeriksaan manual.</p>';
+    } else {
+        ikhfaRules.forEach(rule => {
+            html += `
+                <div class="tajwid-detail">
+                    <div class="word arabic">${rule.kata}</div>
+                    <div>
+                        <span class="rule">${rule.jenis}</span>
+                        <span class="rule" style="background:#f3e5f5; color:#7b1fa2;">huruf: <span class="arabic">${rule.huruf}</span></span>
+                    </div>
+                    <div class="location">📍 Ayat ${rule.ayat}, ${rule.posisi}</div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+    
+    // Section 4: Iqlab
+    html += '<div class="sub-section"><h4>🔄 Iqlab (Nun Mati/Tanwin + Ba)</h4>';
+    const iqlabRules = data.tajwidRules.filter(r => r.jenisRule === 'iqlab');
+    if (iqlabRules.length === 0) {
+        html += '<p style="color:#999;">Tidak ditemukan iqlab. Perlu pemeriksaan manual.</p>';
+    } else {
+        iqlabRules.forEach(rule => {
+            html += `
+                <div class="tajwid-detail">
+                    <div class="word arabic">${rule.kata}</div>
+                    <div><span class="rule">${rule.jenis}</span></div>
+                    <div class="location">📍 Ayat ${rule.ayat}, ${rule.posisi}</div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+    
+    // Section 5: Qalqalah
+    html += '<div class="sub-section"><h4>💫 Qalqalah (Huruf Qalqalah: ق ط ب ج د)</h4>';
+    const qalqalahRules = data.tajwidRules.filter(r => r.jenisRule === 'qalqalah');
+    if (qalqalahRules.length === 0) {
+        html += '<p style="color:#999;">Tidak ditemukan qalqalah. Perlu pemeriksaan manual.</p>';
+    } else {
+        qalqalahRules.forEach(rule => {
+            html += `
+                <div class="tajwid-detail">
+                    <div class="word arabic">${rule.kata}</div>
+                    <div>
+                        <span class="rule">${rule.jenis}</span>
+                        <span class="rule" style="background:#e8f5e9; color:#2e7d32;">huruf: <span class="arabic">${rule.huruf}</span></span>
+                    </div>
+                    <div class="location">📍 Ayat ${rule.ayat}, ${rule.posisi}</div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+    
+    // Section 6: Madd
+    html += '<div class="sub-section"><h4>📏 Madd (Huruf Madd: ا و ي + Harakat Sesuai / Tanda Madd)</h4>';
+    const maddRules = data.tajwidRules.filter(r => r.jenisRule === 'madd');
+    if (maddRules.length === 0) {
+        html += '<p style="color:#999;">Tidak ditemukan madd. Perlu pemeriksaan manual.</p>';
+    } else {
+        maddRules.forEach(rule => {
+            html += `
+                <div class="tajwid-detail">
+                    <div class="word arabic">${rule.kata}</div>
+                    <div>
+                        <span class="rule">${rule.jenis}</span>
+                        <span class="rule" style="background:#fce4ec; color:#c2185b;">${rule.panjang}</span>
+                    </div>
+                    <div class="location">📍 Ayat ${rule.ayat}, ${rule.posisi}</div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+    
+    // Section 7: Tanda lainnya
+    html += '<div class="sub-section"><h4>📌 Tanda Lainnya (Rub\' Hizb, Sajdah, dll)</h4>';
+    const otherTanda = data.tajwidRules.filter(r => r.jenisRule === 'waqf' && !r.nama?.includes('Waqf'));
+    if (otherTanda.length === 0) {
+        html += '<p style="color:#999;">Tidak ada tanda lainnya.</p>';
+    } else {
+        otherTanda.forEach(rule => {
+            html += `
+                <div class="tajwid-detail">
+                    <div class="word arabic">${rule.kata}</div>
+                    <div><span class="rule">${rule.nama}</span></div>
+                    <div class="location">📍 Ayat ${rule.ayat}, ${rule.posisi}</div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+    document.getElementById('tajwidSection').classList.add('active');
+}
+
+// FITUR 3: RENDER KAIDAH TAJWID BERULANG
+function renderTajwidBerulang(data) {
+    const container = document.getElementById('tajwidBerulangContent');
+    container.innerHTML = '';
+    
+    if (data.sortedTajwidRules.length === 0) {
+        container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">Tidak ada kaidah tajwid yang terdeteksi.</p>';
+        document.getElementById('tajwidBerulangSection').classList.add('active');
+        return;
+    }
+    
+    // Statistik ringkasan
+    const totalRules = data.sortedTajwidRules.reduce((sum, [,v]) => sum + v, 0);
+    const uniqueRules = data.sortedTajwidRules.length;
+    
+    let html = `
+        <div class="stats-grid" style="margin-bottom:15px;">
+            <div class="stat-card"><div class="stat-value">${uniqueRules}</div><div class="stat-label">Jenis Kaidah Tajwid</div></div>
+            <div class="stat-card"><div class="stat-value">${totalRules}</div><div class="stat-label">Total Kemunculan</div></div>
+        </div>
+    `;
+    
+    // Tabel kaidah tajwid berulang
+    html += '<div style="overflow-x:auto;"><table style="font-size:0.9em;"><thead><tr><th>No</th><th>Kaidah Tajwid</th><th>Jumlah</th><th>Persentase</th><th>Visual</th></tr></thead><tbody>';
+    
+    const maxCount = data.sortedTajwidRules[0] ? data.sortedTajwidRules[0][1] : 1;
+    
+    data.sortedTajwidRules.forEach(([rule, count], index) => {
+        const persen = ((count / totalRules) * 100).toFixed(2);
+        const barWidth = (count / maxCount * 100).toFixed(1);
+        const ruleColors = {
+            'Idgham Bighunnah': '#e8f5e9',
+            'Idgham Bilaghunnah': '#e3f2fd',
+            'Ikhfa\' Haqiqi': '#f3e5f5',
+            'Iqlab': '#fff3e0',
+            'Qalqalah Sugra': '#fce4ec',
+            'Qalqalah Kubra': '#e0f2f1',
+            'Madd Asli': '#fff8e1',
+            'Madd Lazim': '#efebe9'
+        };
+        const bgColor = ruleColors[rule] || '#f0f0f0';
+        
+        html += `
+            <tr>
+                <td>${index + 1}</td>
+                <td><strong>${rule}</strong></td>
+                <td><strong>${count}x</strong></td>
+                <td>${persen}%</td>
+                <td><div class="bar-chart"><div class="bar" style="width:${barWidth}%; background:${bgColor};"></div><span class="bar-value">${count}</span></div></td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    
+    // Detail card per kaidah
+    html += '<h4 style="margin:20px 0 10px; color:#1a5276;">📋 Detail Kaidah Tajwid Berulang</h4>';
+    
+    const ruleIcons = {
+        'Idgham Bighunnah': '🔗',
+        'Idgham Bilaghunnah': '🔗',
+        'Ikhfa\' Haqiqi': '😶',
+        'Iqlab': '🔄',
+        'Qalqalah Sugra': '💫',
+        'Qalqalah Kubra': '💫',
+        'Madd Asli': '📏',
+        'Madd Lazim': '📏',
+        'Waqf Jaiz': '🛑',
+        'Waqf Lazim': '🛑',
+        'Waqf Murakhkhas': '🛑',
+        'Waqf Mujawwaz': '🛑'
+    };
+    
+    data.sortedTajwidRules.slice(0, 15).forEach(([rule, count]) => {
+        // Cari contoh kata untuk setiap kaidah
+        const examples = data.tajwidRules
+            .filter(r => r.jenis === rule || r.nama === rule)
+            .slice(0, 3)
+            .map(r => r.kata);
+        
+        const uniqueExamples = [...new Set(examples)];
+        
+        html += `
+            <div class="rule-repeat-card">
+                <span class="rule-name">${ruleIcons[rule] || '📌'} ${rule}</span>
+                <span class="rule-count">${count}x</span>
+                <div class="rule-locations">
+                    ${uniqueExamples.length > 0 ? `Contoh: ${uniqueExamples.map(w => `<span class="arabic" style="font-size:1.1em;">${w}</span>`).join(', ')}` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    document.getElementById('tajwidBerulangSection').classList.add('active');
+}
+
+function renderNahwu(data) {
+    const container = document.getElementById('nahwuContent');
+    container.innerHTML = '';
+    
+    // Section 1: Klasifikasi kata
+    let html = '<div class="sub-section"><h4>📊 Klasifikasi Kata</h4>';
+    const isimCount = data.nahwuAnalysis.filter(n => n.jenis === 'ism').length;
+    const fiilCount = data.nahwuAnalysis.filter(n => n.jenis === 'fi\'il').length;
+    const harfCount = data.nahwuAnalysis.filter(n => n.jenis === 'harf').length;
+    
+    html += `
+        <div class="stats-grid" style="margin-bottom:15px;">
+            <div class="stat-card"><div class="stat-value">${isimCount}</div><div class="stat-label">Isim (Kata Benda)</div></div>
+            <div class="stat-card"><div class="stat-value">${fiilCount}</div><div class="stat-label">Fi\'il (Kata Kerja)</div></div>
+            <div class="stat-card"><div class="stat-value">${harfCount}</div><div class="stat-label">Harf (Kata Depan)</div></div>
+        </div>
+    `;
+    
+    // Tabel detail kata
+    html += '<div style="overflow-x:auto;"><table style="font-size:0.85em;"><thead><tr><th>No</th><th>Kata</th><th>Murni</th><th>Jenis</th><th>Tag</th><th>Ayat</th></tr></thead><tbody>';
+    data.nahwuAnalysis.slice(0, 50).forEach((item, idx) => {
+        const tagClass = item.jenis === 'ism' ? 'nahwu-ism' : item.jenis === 'fi\'il' ? 'nahwu-fiil' : 'nahwu-harf';
+        html += `
+            <tr>
+                <td>${idx + 1}</td>
+                <td class="arabic">${item.kata}</td>
+                <td class="arabic">${item.murni}</td>
+                <td><span class="nahwu-tag ${tagClass}">${item.jenis}</span></td>
+                <td>${item.tag}</td>
+                <td>${item.ayat}</td>
+            </tr>
+        `;
+    });
+    if (data.nahwuAnalysis.length > 50) {
+        html += `<tr><td colspan="6" style="text-align:center; color:#999;">... dan ${data.nahwuAnalysis.length - 50} kata lainnya</td></tr>`;
+    }
+    html += '</tbody></table></div>';
+    html += '</div>';
+    
+    // Section 2: Analisis I'rab
+    html += '<div class="sub-section"><h4>📝 Analisis I\'rab (Tentatif - Berdasarkan Harakat Akhir)</h4>';
+    html += '<p style="color:#666; font-size:0.9em; margin-bottom:10px;">Catatan: Analisis i\'rab ini otomatis dan perlu diverifikasi ahli.</p>';
+    
+    const irobAnalysis = [];
+    data.ayatList.forEach((ayat, ayatIdx) => {
+        const words = ayat.split(/\s+/).filter(w => w);
+        words.forEach((word, wordIdx) => {
+            const chars = Array.from(word);
+            // Cari huruf terakhir yang diikuti harakat
+            let lastHurufIdx = -1;
+            for (let i = chars.length - 1; i >= 0; i--) {
+                if (isHurufArab(chars[i])) {
+                    lastHurufIdx = i;
+                    break;
+                }
+            }
+            
+            if (lastHurufIdx >= 0 && lastHurufIdx < chars.length - 1) {
+                const harakatAkhir = chars[lastHurufIdx + 1];
+                let irob = '';
+                let keterangan = '';
+                
+                if (harakatAkhir === 'ُ' || harakatAkhir === 'ٌ') {
+                    irob = 'Marfu\'';
+                    keterangan = harakatAkhir === 'ٌ' ? 'Dammatan (tanwin raf\')' : 'Dammah (raf\')';
+                } else if (harakatAkhir === 'َ' || harakatAkhir === 'ً') {
+                    irob = 'Manshub';
+                    keterangan = harakatAkhir === 'ً' ? 'Fathatan (tanwin nasb)' : 'Fathah (nasb)';
+                } else if (harakatAkhir === 'ِ' || harakatAkhir === 'ٍ') {
+                    irob = 'Majrur';
+                    keterangan = harakatAkhir === 'ٍ' ? 'Kasratan (tanwin jar)' : 'Kasrah (jar)';
+                } else if (harakatAkhir === 'ْ') {
+                    irob = 'Majzum/Mabni';
+                    keterangan = 'Sukun (jazm/bangun)';
+                }
+                
+                if (irob) {
+                    irobAnalysis.push({ kata: word, irob, keterangan, harakat: harakatAkhir, ayat: ayatIdx + 1 });
+                }
+            }
+        });
+    });
+    
+    html += '<div style="overflow-x:auto;"><table style="font-size:0.85em;"><thead><tr><th>Kata</th><th>Harakat Akhir</th><th>I\'rab</th><th>Keterangan</th><th>Ayat</th></tr></thead><tbody>';
+    irobAnalysis.slice(0, 30).forEach(item => {
+        html += `
+            <tr>
+                <td class="arabic">${item.kata}</td>
+                <td class="arabic">${item.harakat}</td>
+                <td><span class="nahwu-tag nahwu-fail">${item.irob}</span></td>
+                <td>${item.keterangan}</td>
+                <td>${item.ayat}</td>
+            </tr>
+        `;
+    });
+    if (irobAnalysis.length > 30) {
+        html += `<tr><td colspan="5" style="text-align:center; color:#999;">... dan ${irobAnalysis.length - 30} kata lainnya</td></tr>`;
+    }
+    html += '</tbody></table></div>';
+    html += '</div>';
+    
+    // Section 3: Struktur Kalimat
+    html += '<div class="sub-section"><h4>🏗️ Struktur Kalimat (Tentatif)</h4>';
+    html += '<p style="color:#666; font-size:0.9em; margin-bottom:10px;">Deteksi pola kalimat berdasarkan kata pertama:</p>';
+    
+    const strukturKalimat = [];
+    data.ayatList.forEach((ayat, ayatIdx) => {
+        const words = ayat.split(/\s+/).filter(w => w);
+        if (words.length >= 2) {
+            const firstWord = words[0];
+            const firstChars = Array.from(firstWord);
+            const firstMurni = firstChars.map(c => getHurufMurni(c)).filter(c => c).join('');
+            
+            let struktur = '';
+            let tag = '';
+            
+            if (firstMurni.startsWith('إن') || firstMurni.startsWith('أن')) {
+                struktur = 'Kalimat Inna (إنّ وأخواتها)';
+                tag = 'Inna';
+            } else if (firstMurni.startsWith('كان') || firstMurni.startsWith('كان')) {
+                struktur = 'Kalimat Kana (كان وأخواتها)';
+                tag = 'Kana';
+            } else if (firstMurni.startsWith('لم')) {
+                struktur = 'Kalimat Negasi dengan Lam';
+                tag = 'Negasi';
+            } else if (firstMurni.startsWith('ما')) {
+                struktur = 'Kalimat Negasi dengan Ma';
+                tag = 'Negasi';
+            } else if (firstMurni.startsWith('لن')) {
+                struktur = 'Kalimat Negasi untuk Mudhari\'';
+                tag = 'Negasi';
+            } else if (firstMurni.startsWith('هل') || firstMurni.startsWith('أ')) {
+                struktur = 'Kalimat Interogatif';
+                tag = 'Tanya';
+            } else if (firstMurni.startsWith('يا')) {
+                struktur = 'Kalimat Panggilan (Nida\')';
+                tag = 'Nida';
+            } else if (firstMurni.startsWith('و')) {
+                struktur = 'Kalimat dengan Waw Atf';
+                tag = 'Atf';
+            } else if (firstMurni.startsWith('ف')) {
+                struktur = 'Kalimat dengan Fa Atf';
+                tag = 'Atf';
+            } else {
+                // Cek apakah fi'il atau jumlah ismiyyah
+                const secondWord = words[1] || '';
+                const secondChars = Array.from(secondWord);
+                const secondMurni = secondChars.map(c => getHurufMurni(c)).filter(c => c).join('');
+                
+                if (secondMurni.startsWith('ال') || secondMurni.startsWith('لل')) {
+                    struktur = 'Kalimat Nominal (Jumlah Ismiyyah)';
+                    tag = 'Ismiyyah';
+                } else if (['ي','ت','ن','أ'].some(c => firstMurni.startsWith(c))) {
+                    struktur = 'Kalimat Verbal (Jumlah Fi\'liyyah)';
+                    tag = 'Fi\'liyyah';
+                } else {
+                    struktur = 'Kalimat Nominal/Verbal';
+                    tag = 'Jumlah';
+                }
+            }
+            strukturKalimat.push({ ayat: ayatIdx + 1, firstWord, struktur, tag });
+        }
+    });
+    
+    html += '<div style="overflow-x:auto;"><table style="font-size:0.85em;"><thead><tr><th>Ayat</th><th>Kata Pertama</th><th>Struktur (Tentatif)</th><th>Tag</th></tr></thead><tbody>';
+    strukturKalimat.forEach(item => {
+        const tagClass = item.tag === 'Inna' ? 'nahwu-mubtada' : 
+                         item.tag === 'Kana' ? 'nahwu-khabar' :
+                         item.tag === 'Negasi' ? 'nahwu-harf' :
+                         item.tag === 'Tanya' ? 'nahwu-ism' :
+                         item.tag === 'Nida' ? 'nahwu-fiil' :
+                         item.tag === 'Atf' ? 'nahwu-harf' :
+                         item.tag === 'Ismiyyah' ? 'nahwu-mubtada' :
+                         item.tag === 'Fi\'liyyah' ? 'nahwu-fail' : 'nahwu-mafoul';
+        html += `
+            <tr>
+                <td>${item.ayat}</td>
+                <td class="arabic">${item.firstWord}</td>
+                <td>${item.struktur}</td>
+                <td><span class="nahwu-tag ${tagClass}">${item.tag}</span></td>
+            </tr>
+        `;
+    });
+    html += '</tbody></table></div>';
+    html += '</div>';
+    
+    // Section 4: Fa'il dan Maf'ul (deteksi sederhana)
+    html += '<div class="sub-section"><h4>👥 Fa\'il & Maf\'ul (Tentatif)</h4>';
+    html += '<p style="color:#666; font-size:0.9em; margin-bottom:10px;">Deteksi pelaku dan objek berdasarkan pola:</p>';
+    
+    const faailMafuul = [];
+    data.ayatList.forEach((ayat, ayatIdx) => {
+        const words = ayat.split(/\s+/).filter(w => w);
+        words.forEach((word, wordIdx) => {
+            const chars = Array.from(word);
+            const murni = chars.map(c => getHurufMurni(c)).filter(c => c).join('');
+            
+            // Deteksi Fa'il (pelaku) - biasanya setelah fi'il, marfu'
+            if (murni.startsWith('ال') && wordIdx > 0) {
+                const prevWord = words[wordIdx - 1] || '';
+                const prevMurni = Array.from(prevWord).map(c => getHurufMurni(c)).filter(c => c).join('');
+                if (['فعل','قال','جعل','علم','خلق','رزق','هدى','أنزل'].some(p => prevMurni.includes(p))) {
+                    faailMafuul.push({ kata: word, peran: 'Fa\'il (pelaku)', ayat: ayatIdx + 1 });
+                }
+            }
+            
+            // Deteksi Maf'ul (objek) - biasanya manshub, setelah fi'il
+            if (wordIdx > 0 && !murni.startsWith('ال')) {
+                const lastChar = chars[chars.length - 1];
+                const beforeLast = chars[chars.length - 2];
+                if (beforeLast && (beforeLast === 'َ' || lastChar === 'ً')) {
+                    faailMafuul.push({ kata: word, peran: 'Maf\'ul (objek)', ayat: ayatIdx + 1 });
+                }
+            }
+        });
+    });
+    
+    if (faailMafuul.length === 0) {
+        html += '<p style="color:#999;">Tidak ditemukan pola fa\'il/maf\'ul yang jelas.</p>';
+    } else {
+        html += '<div style="overflow-x:auto;"><table style="font-size:0.85em;"><thead><tr><th>Kata</th><th>Peran</th><th>Ayat</th></tr></thead><tbody>';
+        faailMafuul.slice(0, 20).forEach(item => {
+            const tagClass = item.peran.includes('Fa\'il') ? 'nahwu-fail' : 'nahwu-mafoul';
+            html += `
+                <tr>
+                    <td class="arabic">${item.kata}</td>
+                    <td><span class="nahwu-tag ${tagClass}">${item.peran}</span></td>
+                    <td>${item.ayat}</td>
+                </tr>
+            `;
+        });
+        if (faailMafuul.length > 20) {
+            html += `<tr><td colspan="3" style="text-align:center; color:#999;">... dan ${faailMafuul.length - 20} lainnya</td></tr>`;
+        }
+        html += '</tbody></table></div>';
+    }
+    html += '</div>';
+    
+    container.innerHTML = html;
+    document.getElementById('nahwuSection').classList.add('active');
+}
+
+// FITUR 4: RENDER KAIDAH NAHWU BERULANG
+function renderNahwuBerulang(data) {
+    const container = document.getElementById('nahwuBerulangContent');
+    container.innerHTML = '';
+    
+    if (data.sortedNahwuRules.length === 0) {
+        container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">Tidak ada kaidah nahwu yang terdeteksi.</p>';
+        document.getElementById('nahwuBerulangSection').classList.add('active');
+        return;
+    }
+    
+    // Statistik ringkasan
+    const totalRules = data.sortedNahwuRules.reduce((sum, [,v]) => sum + v, 0);
+    const uniqueRules = data.sortedNahwuRules.length;
+    
+    let html = `
+        <div class="stats-grid" style="margin-bottom:15px;">
+            <div class="stat-card"><div class="stat-value">${uniqueRules}</div><div class="stat-label">Jenis Kaidah Nahwu</div></div>
+            <div class="stat-card"><div class="stat-value">${totalRules}</div><div class="stat-label">Total Kemunculan</div></div>
+        </div>
+    `;
+    
+    // Tabel kaidah nahwu berulang
+    html += '<div style="overflow-x:auto;"><table style="font-size:0.9em;"><thead><tr><th>No</th><th>Kaidah Nahwu</th><th>Jumlah</th><th>Persentase</th><th>Visual</th></tr></thead><tbody>';
+    
+    const maxCount = data.sortedNahwuRules[0] ? data.sortedNahwuRules[0][1] : 1;
+    
+    const nahwuColors = {
+        'Ism Ma\'rifat (ال)': '#e3f2fd',
+        'Fi\'il Madhi': '#e8f5e9',
+        'Fi\'il Mudhari\'': '#fff3e0',
+        'Huruf Jarr': '#fce4ec',
+        'Huruf Nashab': '#f3e5f5',
+        'Huruf \'Athaf': '#e0f2f1',
+        'Huruf Istifham': '#fff8e1',
+        'Isim Nakirah': '#efebe9'
+    };
+    
+    data.sortedNahwuRules.forEach(([rule, count], index) => {
+        const persen = ((count / totalRules) * 100).toFixed(2);
+        const barWidth = (count / maxCount * 100).toFixed(1);
+        const bgColor = nahwuColors[rule] || '#f0f0f0';
+        
+        html += `
+            <tr>
+                <td>${index + 1}</td>
+                <td><strong>${rule}</strong></td>
+                <td><strong>${count}x</strong></td>
+                <td>${persen}%</td>
+                <td><div class="bar-chart"><div class="bar" style="width:${barWidth}%; background:${bgColor};"></div><span class="bar-value">${count}</span></div></td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    
+    // Detail card per kaidah
+    html += '<h4 style="margin:20px 0 10px; color:#1a5276;">📋 Detail Kaidah Nahwu Berulang</h4>';
+    
+    const nahwuIcons = {
+        'Ism Ma\'rifat (ال)': '📌',
+        'Fi\'il Madhi': '⚡',
+        'Fi\'il Mudhari\'': '🔮',
+        'Huruf Jarr': '🔗',
+        'Huruf Nashab': '⬇️',
+        'Huruf \'Athaf': '➕',
+        'Huruf Istifham': '❓',
+        'Isim Nakirah': '📝'
+    };
+    
+    data.sortedNahwuRules.slice(0, 15).forEach(([rule, count]) => {
+        // Cari contoh kata untuk setiap kaidah
+        const examples = data.nahwuAnalysis
+            .filter(n => {
+                if (rule === 'Ism Ma\'rifat (ال)') return n.tag === 'ma\'rifat (ال)';
+                if (rule === 'Fi\'il Madhi') return n.tag === 'fi\'il madhi';
+                if (rule === 'Fi\'il Mudhari\'') return n.tag === 'fi\'il mudhari\' (tentatif)';
+                if (rule === 'Huruf Jarr') return n.tag === 'huruf jarr';
+                if (rule === 'Huruf Nashab') return n.tag === 'huruf nashab';
+                if (rule === 'Huruf \'Athaf') return n.tag === 'huruf \'athaf';
+                if (rule === 'Huruf Istifham') return n.tag === 'huruf istifham';
+                if (rule === 'Isim Nakirah') return n.tag === 'isim nakirah (tentatif)';
+                return false;
+            })
+            .slice(0, 3)
+            .map(n => n.kata);
+        
+        const uniqueExamples = [...new Set(examples)];
+        
+        html += `
+            <div class="rule-repeat-card">
+                <span class="rule-name">${nahwuIcons[rule] || '📌'} ${rule}</span>
+                <span class="rule-count">${count}x</span>
+                <div class="rule-locations">
+                    ${uniqueExamples.length > 0 ? `Contoh: ${uniqueExamples.map(w => `<span class="arabic" style="font-size:1.1em;">${w}</span>`).join(', ')}` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    document.getElementById('nahwuBerulangSection').classList.add('active');
+}
+
+function renderDetailAyat(data) {
+    const container = document.getElementById('ayahList');
+    container.innerHTML = '';
+    
+    data.ayatAnalysis.forEach(ayat => {
+        const topHuruf = Object.entries(ayat.hurufMurni)
+            .filter(([k,v]) => v > 0)
+            .sort((a,b) => b[1]-a[1])
+            .slice(0, 5);
+        
+        const topHurufHtml = topHuruf.map(([h,j]) => 
+            `<span style="display:inline-block;background:#e8f6f3;padding:2px 8px;border-radius:5px;margin:2px;font-size:0.85em;">
+                <span class="arabic">${h}</span>=${j}
+            </span>`
+        ).join('');
+        
+        const harakatList = Object.entries(ayat.harakat)
+            .filter(([k,v]) => v > 0)
+            .map(([k,v]) => `<span class="arabic">${k}</span>${v}`)
+            .join(' ');
+        
+        const div = document.createElement('div');
+        div.className = 'ayah-item';
+        div.innerHTML = `
+            <span class="ayah-number">${ayat.nomor}</span>
+            <div style="flex:1;">
+                <div style="margin-bottom:8px; line-height:2;">${ayat.teks}</div>
+                <div style="font-size:0.82em; color:#666;">
+                    📊 <strong>${ayat.jumlahHurufMurni}</strong> huruf murni | 
+                    📊 <strong>${ayat.jumlahHurufArab}</strong> huruf Arab | 
+                    🎵 <strong>${ayat.jumlahHarakat}</strong> harakat | 
+                    🔤 <strong>${Object.keys(ayah.hurufMurni).filter(k => ayah.hurufMurni[k]>0).length}</strong> jenis huruf
+                    <br>Top: ${topHurufHtml || '-'}
+                    <br>Harakat: ${harakatList || '-'}
+                </div>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+    document.getElementById('detailSection').classList.add('active');
+}
+
+function renderDaftarAyat(ayatList) {
+    const container = document.getElementById('daftarAyatList');
+    container.innerHTML = '';
+    
+    ayatList.forEach((ayat, index) => {
+        const div = document.createElement('div');
+        div.className = 'ayah-item';
+        div.innerHTML = `<span class="ayah-number">${index + 1}</span><div style="line-height:2;">${ayat}</div>`;
+        container.appendChild(div);
+    });
+    document.getElementById('daftarAyatSection').classList.add('active');
+}
+
+// ==================== EXPORT CSV ====================
+
+function exportToCSV() {
+    if (!ANALYSIS_DATA) {
+        showAlert('⚠️ Belum ada data untuk di-export!', 'error');
+        return;
+    }
+    
+    let csv = 'Analisis Frekuensi Huruf Al-Quran\n';
+    csv += `Surat: ${ANALYSIS_DATA.namaSurat}\n`;
+    csv += `Total Ayat: ${ANALYSIS_DATA.totalAyat}\n`;
+    csv += `Total Huruf Murni (29): ${ANALYSIS_DATA.totalHurufMurni}\n`;
+    csv += `Total Huruf Arab: ${ANALYSIS_DATA.totalHurufArab}\n\n`;
+    
+    csv += 'NO,HURUF,NAMA,JUMLAH,PERSENTASE,DI AWAL,DI TENGAH,DI AKHIR\n';
+    ANALYSIS_DATA.sortedHurufMurni.forEach(([huruf, jumlah], index) => {
+        const persen = ((jumlah / ANALYSIS_DATA.totalHurufMurni) * 100).toFixed(2);
+        const awal = ANALYSIS_DATA.posisiHuruf.awal[huruf] || 0;
+        const tengah = ANALYSIS_DATA.posisiHuruf.tengah[huruf] || 0;
+        const akhir = ANALYSIS_DATA.posisiHuruf.akhir[huruf] || 0;
+        csv += `${index + 1},${huruf},${HURUF_MURNI[huruf] || '?'},${jumlah},${persen}%,${awal},${tengah},${akhir}\n`;
+    });
+    
+    csv += '\n\nVARIASI HURUF\n';
+    csv += 'HURUF,MURNI,NAMA,JUMLAH\n';
+    ANALYSIS_DATA.sortedHurufVariasi.forEach(([v, jumlah]) => {
+        const murni = getHurufMurni(v);
+        csv += `${v},${murni},${HURUF_MURNI[murni] || '?'},${jumlah}\n`;
+    });
+    
+    // NEW: Export posisi huruf mayoritas
+    csv += '\n\nPOSISI HURUF MAYORITAS PER KATA\n';
+    csv += 'POSISI,HURUF,NAMA,JUMLAH\n';
+    Object.entries(ANALYSIS_DATA.posisiHurufPerKata).forEach(([posisi, hurufData]) => {
+        Object.entries(hurufData).sort((a,b) => b[1]-a[1]).forEach(([huruf, jumlah]) => {
+            csv += `Ke-${posisi},${huruf},${HURUF_MURNI[huruf] || '?'},${jumlah}\n`;
+        });
+    });
+    
+    // NEW: Export kata berulang
+    csv += '\n\nKATA BERULANG\n';
+    csv += 'KATA,JUMLAH\n';
+    ANALYSIS_DATA.sortedKata.forEach(([kata, jumlah]) => {
+        csv += `${kata},${jumlah}\n`;
+    });
+    
+    // NEW: Export kaidah tajwid berulang
+    csv += '\n\nKAIDAH TAJWID BERULANG\n';
+    csv += 'KAIDAH,JUMLAH\n';
+    ANALYSIS_DATA.sortedTajwidRules.forEach(([rule, jumlah]) => {
+        csv += `${rule},${jumlah}\n`;
+    });
+    
+    // NEW: Export kaidah nahwu berulang
+    csv += '\n\nKAIDAH NAHWU BERULANG\n';
+    csv += 'KAIDAH,JUMLAH\n';
+    ANALYSIS_DATA.sortedNahwuRules.forEach(([rule, jumlah]) => {
+        csv += `${rule},${jumlah}\n`;
+    });
+    
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Analisis_${ANALYSIS_DATA.namaSurat.replace(/\s+/g, '_')}.csv`;
+    link.click();
+    
+    showAlert('✅ File CSV berhasil di-download!', 'success');
+}
+
+// ==================== CLEAR ====================
+
+function clearAll() {
+    document.getElementById('ayatInput').value = '';
+    updateCounts();
+    hideAllSections();
+    hideAlert();
+    CURRENT_TEXT = '';
+    CURRENT_AYAT_LIST = [];
+    ANALYSIS_DATA = null;
+    DEBUG_MODE = false;
+    document.getElementById('debugSection').style.display = 'none';
+}
+
+// ==================== INIT ====================
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchSurahList();
+    updateCounts();
+});
+</script>
+</body>
+</html>
+
+
