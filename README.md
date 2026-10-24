@@ -1,7 +1,7 @@
 # OCR-2-HURUF-ARAB
 Ocr 2 optical chararter recognition huruf arab
 petunjuk penggunaan
-1. buka(klik) OCR 2 HURUF ARAB
+1. buka(klik) OCR2.html
 2. copy kode nya
 3. buka TAB baru
 4. masukan alamat onecompiler.com
